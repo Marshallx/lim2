@@ -106,7 +106,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -142,9 +142,7 @@
     <ClInclude Include="src\Enums.h" />
     <ClInclude Include="src\LegoInventoryManager2.h" />
     <ClInclude Include="src\Limb.h" />
-    <ClInclude Include="src\LimbGui.h" />
     <ClInclude Include="resource\Resource.h" />
-    <ClInclude Include="src\MxErr.h" />
     <ClInclude Include="src\sqlite3\sqlite3.h" />
     <ClInclude Include="resource\targetver.h" />
     <ClInclude Include="src\MxUtils.h" />

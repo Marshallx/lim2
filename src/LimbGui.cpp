@@ -8,11 +8,9 @@
 #include "jaml.h"
 #include "Limb.h"
 
-#include "LimbGui.h"
-
 namespace mx
 {
-
+    /*
     void LimbGui::test()
     {
         HANDLE hBmp = (HBITMAP)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_ADDPART), IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR);
@@ -88,7 +86,7 @@ namespace mx
         CreateQueryBar();
         test();
     }
-
+    */
  
 
 }

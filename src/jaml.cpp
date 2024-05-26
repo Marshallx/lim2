@@ -1,12 +1,12 @@
 #include <deque>
 #include <fstream>
+#include <regex>
 
 #include <Windows.h>
 #include <CommCtrl.h>
 
 #include "..\resource\Resource.h"
 
-#include "MxErr.h"
 #include "MxUtils.h"
 
 #include "jaml.h"
@@ -14,7 +14,6 @@
 namespace jaml
 {
     using namespace mx::MxUtils;
-    using namespace mx::err;
 
     // ========================================================================
     // ================ Globals ===============================================
@@ -63,6 +62,16 @@ namespace jaml
         return dpi;
     }
 
+    bool isHSide(Side const side)
+    {
+        return side == LEFT || side == RIGHT;
+    }
+
+    bool isVSide(Side const side)
+    {
+        return side == TOP || side == BOTTOM;
+    }
+
     char peek(std::string_view const & str, size_t pos)
     {
         if (pos < str.size()) return str[pos];
@@ -99,7 +108,7 @@ namespace jaml
             switch (wmId)
             {
             case IDM_ABOUT:
-                DialogBox(g_hInstance, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+                //DialogBox(g_hInstance, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
             case IDM_EXIT:
                 DestroyWindow(hWnd);
@@ -165,7 +174,8 @@ namespace jaml
 
     Element * Element::addChild(std::string_view const & id)
     {
-        auto const child = std::make_shared<Element>(Element{ id });
+        auto const child = std::make_shared<Element>(Element{});
+        child.get()->id = id;
         child.get()->parent = this;
         child.get()->i = children.size();
         children.push_back(child);
@@ -275,14 +285,15 @@ namespace jaml
         if (!hwnd) throw std::runtime_error("Failed to create element window");
     }
 
-    Element * Element::findElement(std::string_view const & id) const
+    Element * Element::findElement(std::string_view const & id)
     {
+        if (this->id == id) return this;
         for (auto const & child : children)
         {
-            if (child.get()->id == id) return child.get();
+            auto const found = child.get()->findElement(id);
+            if (found) return found;
         }
-        // TODO now search children's children
-        throw std::runtime_error(std::format("Child element with id \"{}\" not found.", id));
+        return nullptr;
     }
 
     Element * Element::getChild(size_t const i) const
@@ -325,6 +336,11 @@ namespace jaml
         return element->fontWeight;
     }
 
+    HWND Element::getHwnd() const noexcept
+    {
+        return hwnd;
+    }
+
     Window * Element::getRoot() const noexcept
     {
         auto root = this;
@@ -342,6 +358,24 @@ namespace jaml
         setVisible(false);
     }
 
+    Measure Element::parseMeasure(std::string const & spec)
+    {
+        constexpr static auto const pattern = R"(^([0-9]+(?:\.?[0-9]+)?)(em|px|%)?)?$)";
+        static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
+
+        auto matches = std::smatch{};
+        if (!std::regex_search(spec, matches, regex)) MX_THROW("Invalid tether: bad format.");
+
+        double offset = atof(matches[1].str().c_str());
+        std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
+        auto unit = Unit::PX;
+        if (unitStr == "em") unit = EM;
+        else if (unitStr == "%") unit = PC;
+        else if (unitStr == "pt") unit = PT;
+
+        return { offset, unit };
+    }
+
     size_t Element::recalculateHeight()
     {
         if (futurePos.height.has_value()) return 0;
@@ -352,6 +386,8 @@ namespace jaml
             return 0;
         }
 
+        // TODO get height from explicit
+        /*
         switch (size.width.unit)
         {
         case AUTO:
@@ -359,8 +395,7 @@ namespace jaml
         case EM:
         case PC:
         }
-
-        // TODO get height from explicit
+        */
         // TODO get height from children/content
         return 1;
     }
@@ -498,6 +533,12 @@ namespace jaml
         updateFont();
     }
 
+    void Element::setFontSize(std::string const & spec)
+    {
+        fontSize = parseMeasure(spec);
+        updateFont();
+    }
+
     void Element::setFontStyle(FontStyle const & style)
     {
         fontStyle = style;
@@ -510,6 +551,11 @@ namespace jaml
         updateFont();
     }
 
+    void Element::setHeight(std::string const & spec)
+    {
+        size.height = parseMeasure(spec);
+    }
+
     void Element::setId(std::string_view const & v)
     {
         id = v;
@@ -518,6 +564,11 @@ namespace jaml
     void Element::setImage(HBITMAP v)
     {
         //TODO
+    }
+
+    void Element::setLabel(std::string_view const & v)
+    {
+        label = v;
     }
 
     void Element::setOpacity(uint8_t const v)
@@ -532,7 +583,7 @@ namespace jaml
         padding[side] = v;
     }
 
-    void Element::setTextAlignH(HorizontalAlignment v)
+    void Element::setTextAlignH(Side const v)
     {
         textAlignH = v;
     }
@@ -563,9 +614,14 @@ namespace jaml
         value = v;
     }
 
-    void Element::setVisible(bool const v = true)
+    void Element::setVisible(bool const v)
     {
         visible = v;
+    }
+
+    void Element::setWidth(std::string const & spec)
+    {
+        size.width = parseMeasure(spec);
     }
 
     void Element::show()
@@ -579,34 +635,33 @@ namespace jaml
         // TODO Validate that no tether has cyclic dependencies
     }
 
-    void Element::tether(Side const mySide, std::string_view const & spec)
+    void Element::tether(Side const mySide, std::string const & spec)
     {
-        // Example: #otherid,left,+5px
-        if (spec.empty()) return;
+        // Example: id>left+5px
 
-        auto otherId = std::string_view{};
-        Side otherSide = mySide;
-        Measure offset;
-
-        if (spec[0] == '#')
+        constexpr static auto const pattern = R"(^([^>]+)>(left|right|bottom|top|l|r|t|b)(?:(\+|\-[0-9]+(?:\.?[0-9]+)?)(em|px|%)?)?$)";
+        static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
+        
+        auto matches = std::smatch{};
+        if (!std::regex_search(spec, matches, regex)) MX_THROW("Invalid tether: bad format.");
+        
+        auto otherSide = mySide;
+        switch (matches[2].str()[0])
         {
-            auto pos = spec.find_first_of(',');
-            auto const otherId = std::string_view{ spec.begin() + 1, spec.begin() + pos };
-            if (pos != std::string::npos)
-            {
-                auto pos2 = spec.find_first_of(',', pos + 1);
-                auto const otherSideS = std::string_view{ spec.begin() + pos + 1, spec.begin() + pos2 };
-                if (otherSideS == "left") otherSide = LEFT;
-                else if (otherSideS == "right") otherSide = RIGHT;
-                else if (otherSideS == "top") otherSide = TOP;
-                else if (otherSideS == "bottom") otherSide = BOTTOM;
-                if (pos != std::string::npos)
-                {
-                    // TODO offset
-                }
-            }
+        case 't': otherSide = TOP; break;
+        case 'l': otherSide = LEFT; break;
+        case 'b': otherSide = BOTTOM; break;
+        case 'r': otherSide = RIGHT; break;
         }
-        tethers[mySide] = { otherId, otherSide, offset };
+        if (isHSide(mySide) != isHSide(otherSide)) MX_THROW("Invalid tether: incompatible side axis.");
+
+        double offset = (matches.length() >= 3) ? atof(matches[3].str().c_str()) : 0;
+        std::string const unitStr = (matches.length() >= 4) ? matches[4].str() : "";
+        auto unit = Unit::PX;
+        if (unitStr == "em") unit = EM;
+        else if (unitStr == "%") unit = PC;
+        
+        tethers[mySide] = { matches[1].str(), otherSide, { offset, unit } };
         // TODO Validate that no tether has cyclic dependencies
     }
 
@@ -651,7 +706,7 @@ namespace jaml
         switch (unit)
         {
         case PX:
-            return value;
+            return (int)value;
 
         case EM:
         case PC:
@@ -659,8 +714,22 @@ namespace jaml
 
         case PT:
             auto hdc = GetDC(element->getHwnd());
-            return -MulDiv(value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+            return -MulDiv((int)value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
         }
+
+        MX_THROW("Specified unit cannot be converted to pixels.");
+    }
+
+    Side operator ~(Side const side)
+    {
+        switch (side)
+        {
+        case TOP: return BOTTOM;
+        case BOTTOM: return TOP;
+        case LEFT: return RIGHT;
+        case RIGHT: return LEFT;
+        }
+        MX_THROW("Specified side has no opposite.");
     }
 
     int Window::start(HINSTANCE hInstance, int const nCmdShow)
@@ -737,7 +806,7 @@ namespace jaml
         size_t pos = 0;
         for (; pos < source.size(); ++pos)
         {
-            if (source[pos] >= 'a' && source[pos] <= 'z') continue;
+            if (source[pos] < 'a' || source[pos] > 'z') break;
         }
         if (pos + 2 >= source.size()) MX_THROW("Unexpected end of input.");
         if (source[pos] != '=') MX_THROW("Missing = after property name.");
@@ -754,29 +823,30 @@ namespace jaml
         };
     }
 
-    std::string_view jaml_parser_parse_node(std::string_view & source, Element * element)
+    std::string_view jaml_parser_parse_node(std::string_view const & source, Element * element)
     {
         if (peek(source) != '{') MX_THROW("JAML input must start with {.");
-        source = { source.begin() + 1, source.end() };
-        while (!source.empty())
+        std::string_view working = { source.begin() + 1, source.end() };
+        while (!working.empty())
         {
-            source = eat_whitespace(source);
-            if (source.empty()) break;
+            working = eat_whitespace(working);
+            if (working.empty()) break;
 
-            switch (source[0])
+            switch (working[0])
             {
             case '{':
-                // TODO child node
-                auto child = element->addChild();
-                source = jaml_parser_parse_node(source, child);
-                continue;
+                {
+                    auto child = element->addChild();
+                    working = jaml_parser_parse_node(working, child);
+                    continue;
+                }
             case '}':
-                return { source.begin() + 1, source.end() };
+                return { working.begin() + 1, working.end() };
             default:
-                auto r = jaml_parser_read_property(source);
+                auto r = jaml_parser_read_property(working);
                 auto propname = std::get<0>(r);
                 auto propval = std::get<1>(r);
-                source = std::get<2>(r);
+                working = std::get<2>(r);
                 if (propname == "id") element->setId(propval);
                 else if (propname == "value") element->setValue(propval);
                 else if (propname == "label") element->setLabel(propval);
@@ -797,9 +867,9 @@ namespace jaml
         throw std::runtime_error("Unexpected end of JAML input.");
     }
 
-    Element::Element(std::string_view const & source)
+    Element::Element(std::string_view const & id)
     {
-        jaml_parser_parse_node(source, this);
+        this->id = id;
     }
 
     Window::Window(std::string const & source) : Window()

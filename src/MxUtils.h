@@ -1,9 +1,12 @@
 #pragma once
 
 #include <filesystem>
+#include <source_location>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#define MX_THROW(message) { throw std::runtime_error(formatError(message).str()); }
 
 namespace mx
 {
@@ -24,6 +27,8 @@ namespace mx
 
         // Join a vector of strings into a single string.
         std::string Implode(std::vector<std::string> const & v, std::string_view const & delim = ",");
+
+        std::ostringstream formatError(std::string_view const & message, std::source_location const && source = {});
 
         std::filesystem::path GetModuleFilePath();
 

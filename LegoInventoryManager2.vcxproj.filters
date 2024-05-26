@@ -30,9 +30,6 @@
     <ClInclude Include="src\Limb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\LimbGui.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\sqlite3\sqlite3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -46,9 +43,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\jaml.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\MxErr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

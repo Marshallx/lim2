@@ -1,6 +1,10 @@
 #pragma once
 
+#include <filesystem>
+#include <memory>
+#include <optional>
 #include <string_view>
+#include <vector>
 
 #include <Windows.h>
 
@@ -12,11 +16,6 @@ namespace jaml
 
     class Window;
     class Element;
-
-    // ========================================================================
-    // ================ Globals ===============================================
-    // ========================================================================
-    HINSTANCE g_hInstance;
 
     // ========================================================================
     // ================ Enums =================================================
@@ -54,37 +53,12 @@ namespace jaml
         BLACK = 900
     };
 
-    enum HorizontalAlignment
-    {
-        LEFT, CENTER, RIGHT
-    };
-
     enum Side
     {
-        NONE, TOP, LEFT, BOTTOM, RIGHT
+        TOP, LEFT, BOTTOM, RIGHT, CENTER /*only for text align*/, NONE
     };
 
-    Side operator ~(Side const side)
-    {
-        switch (side)
-        {
-        case TOP: return BOTTOM;
-        case BOTTOM: return TOP;
-        case LEFT: return RIGHT;
-        case RIGHT: return LEFT;
-        }
-        return NONE;
-    }
-
-    bool isHSide(Side const side)
-    {
-        return side == LEFT || side == RIGHT;
-    }
-
-    bool isVSide(Side const side)
-    {
-        return side == TOP || side == BOTTOM;
-    }
+    Side operator ~(Side const side);
 
     enum Unit
     {
@@ -98,11 +72,11 @@ namespace jaml
     class Measure
     {
     public:
-        int value;
+        double value;
         Unit unit;
 
-        Measure(int const value, Unit const unit) : unit(unit), value(value) {};
-        Measure(int const value) : value(value), unit(PX) {};
+        Measure(double const value, Unit const unit) : unit(unit), value(value) {};
+        Measure(double const value) : value(value), unit(PX) {};
         Measure() : value(0), unit(PX) {};
 
         int toPixels(Element const * element) const;
@@ -151,7 +125,7 @@ namespace jaml
         void blue(uint8_t value) noexcept { rgba = (rgba & 0xFF00FFFF) | (value << 16); };
         void alpha(uint8_t value) noexcept { rgba = (rgba & 0x00FFFFFF) | (value << 24); };
     private:
-        uint32_t rgba;
+        uint32_t rgba = 0;
     };
 
     class Element
@@ -160,7 +134,7 @@ namespace jaml
         Element * addChild(std::string_view const & id = {});
 
         Element * getChild(size_t const i) const;
-        Element * findElement(std::string_view const & id) const;
+        Element * findElement(std::string_view const & id);
         Window * getRoot() const noexcept;
 
         void removeChildren();
@@ -174,28 +148,30 @@ namespace jaml
         int getFontWeight() const;
         std::string const & getValue() const;
 
+        static Measure parseMeasure(std::string const & spec);
+
         void setBackgroundColor(Color const & v);
         void setFontFace(std::string_view const & face);
         void setFontSize(Measure const & size);
-        void setFontSize(std::string_view const & spec);
+        void setFontSize(std::string const & spec);
         void setFontStyle(FontStyle const & style);
         void setFontWeight(int const weight);
-        void setHeight(std::string_view const & spec);
+        void setHeight(std::string const & spec);
         void setId(std::string_view const & v);
         void setImage(HBITMAP v);
         void setLabel(std::string_view const & v);
         void setOpacity(uint8_t const v);
         void setPadding(Side const side, Measure const & v);
-        void setTextAlignH(HorizontalAlignment v);
+        void setTextAlignH(Side const v);
         void setTextColor(Color const & v);
         void setType(ElementType const v);
         void setType(std::string_view const & v);
         void setValue(std::string_view const & v);
         void setVisible(bool const v = true);
-        void setWidth(std::string_view const & spec)
+        void setWidth(std::string const & spec);
 
         void tether(Side const mySide, std::string_view const & otherId, Side const otherSide, Measure const & offset);
-        void tether(Side const mySide, std::string_view const & spec);
+        void tether(Side const mySide, std::string const & spec);
 
         void updateFont();
 
@@ -221,7 +197,6 @@ namespace jaml
         void commitLayout();
 
     private:
-        Element();
         Element(std::string_view const & source);
         void create();
 
@@ -229,29 +204,29 @@ namespace jaml
         ResolvedPos currentPos;
         ResolvedPos futurePos;
         Color backgroundColor = { 0xFFFFFFFF };
-        std::vector<std::shared_ptr<Element>> children;
+        std::vector<std::shared_ptr<Element>> children = {};
         std::vector<std::string> classes;
-        bool created;
+        bool created = false;
         std::string fontFace;
         FontStyle fontStyle = FontStyle::INHERIT;
         int fontWeight = 0;
         Measure fontSize = {0, Unit::AUTO};
-        HFONT font;
-        HorizontalAlignment textAlignH;
-        HWND hwnd;
-        size_t i;
+        HFONT font = 0;
+        Side textAlignH = LEFT;
+        HWND hwnd = 0;
+        size_t i = 0;
         std::string id;
-        HBITMAP image;
+        HBITMAP image = 0;
         std::string label;
-        uint8_t opacity;
+        uint8_t opacity = 255;
         Measure padding[4];
-        Element * parent;
+        Element * parent = nullptr;
         Size size;
         Tether tethers[4];
         Color textColor;
         ElementType type = ElementType::STATIC;
         std::string value;
-        bool visible;
+        bool visible = true;
 
     protected:
         Element() {};
@@ -265,6 +240,7 @@ namespace jaml
         Window(std::string const & source);
         int start(HINSTANCE hInstance, int const nCmdShow);
     private:
+        Window(Window const &) = delete;
     };
 
     // ========================================================================
@@ -277,6 +253,9 @@ namespace jaml
     int getLineHeight(HWND hwnd, HFONT font);
     int getDpi(HWND hwnd);
 
+    bool isHSide(Side const side);
+    bool isVSide(Side const side);
+
     // Gets specified character from string, or 0 if out of range.
     char peek(std::string_view const & str, size_t pos = 0);
 
@@ -284,8 +263,8 @@ namespace jaml
     std::string_view eat_whitespace(std::string_view const & source);
 
     // Returns the property name, value (decoded), and remaining/unparsed source
-    std::tuple<std::string_view, std::string, std::string_view> jaml_parser_read_property(std::string_view & source);
+    std::tuple<std::string_view, std::string, std::string_view> jaml_parser_read_property(std::string_view const & source);
 
     // Populate the supplied element as specified by the next node.
-    void jaml_parser_parse_node(std::string_view const & source, Element * element);
+    std::string_view jaml_parser_parse_node(std::string_view  const & source, Element * element);
 }

@@ -1,6 +1,5 @@
 #include "sqlite3/sqlite3.h"
 #include "Config.h"
-#include "LimbGui.h"
 #include "MxUtils.h"
 
 #include "Limb.h"
@@ -9,29 +8,35 @@ namespace mx
 {
     using namespace jaml;
 
-    jaml::Window Limb::gui;
+    jaml::Window * Limb::gui = nullptr;
     Database Limb::db = {};
+
+    std::filesystem::path Limb::GetRelPath(char const * relPath)
+    {
+        return MxUtils::GetModuleFilePath().parent_path() / relPath;
+    }
 
     int Limb::Start(HINSTANCE hInstance, int nCmdShow)
     {
         Config::Load();
-        db.Open(MxUtils::GetModuleFilePath().replace_filename("inventory.sqlite"));
+        db.Open(GetRelPath("inventory.sqlite"));
         db.GetVersion();
         BuildGui();
-        auto const exitcode = gui.start(hInstance, nCmdShow);
+        auto const exitcode = gui->start(hInstance, nCmdShow);
         Config::Save();
         return exitcode;
     }
 
     void Limb::BuildGui()
     {
-        gui.setLabel("Lego Inventory Manager 2");
-        CreateQueryBar();
+        gui = new Window(GetRelPath("resource\\search.jaml"));
+        gui->setLabel("Lego Inventory Manager 2");
+        //CreateQueryBar();
     }
 
     void Limb::CreateQueryBar()
     {
-        auto bar = gui.addChild("queryBar");
+        auto bar = gui->addChild("queryBar");
         bar->tether(Side::LEFT, "outer", Side::LEFT, 0);
         bar->tether(Side::RIGHT, "outer", Side::RIGHT, 0);
 

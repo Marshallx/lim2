@@ -2,15 +2,12 @@
 
 #include <Windows.h>
 
-#include "MxErr.h"
-
 #include "MxUtils.h"
 
 namespace mx
 {
     namespace MxUtils
     {
-        using namespace mx::err;
 
         std::string Utf8String(std::wstring const & utf16)
         {
@@ -87,6 +84,13 @@ namespace mx
             return s;
         }
 
+        std::ostringstream formatError(std::string_view const & message, std::source_location const && source)
+        {
+            auto oss = std::ostringstream{};
+            oss << "ERROR: " << source.file_name() << '#' << source.line() << ',' << source.column() << ": " << message << std::endl;
+            return oss;
+        }
+
         std::filesystem::path GetModuleFilePath()
         {
             auto selfexe = std::wstring{};
@@ -156,7 +160,7 @@ namespace mx
             if (!cchParsed) cchParsed = &pos;
             if (s.empty() || s[0] != '"') MX_THROW("Expected a quoted JSON string.");
             auto oss = std::ostringstream{};
-            for (*cchParsed = 0; *cchParsed < s.size(); ++(*cchParsed))
+            for (*cchParsed = 1; *cchParsed < s.size(); ++(*cchParsed))
             {
                 switch (s[*cchParsed])
                 {
@@ -169,16 +173,17 @@ namespace mx
                     if (*cchParsed >= s.size()) MX_THROW(std::format("Unexpected end of JSON string at position {}.", *cchParsed - 1))
                     switch (s[*cchParsed])
                     {
-                    case '"':  oss << '"'; break;
-                    case '\\': oss << '\\'; break;
-                    case 'b': oss << '\b'; break;
-                    case 'f': oss << '\f'; break;
-                    case 'n': oss << '\n'; break;
-                    case 'r': oss << '\r'; break;
-                    case 't': oss << '\t'; break;
+                    case '"':  oss << '"'; continue;
+                    case '\\': oss << '\\'; continue;
+                    case 'b': oss << '\b'; continue;
+                    case 'f': oss << '\f'; continue;
+                    case 'n': oss << '\n'; continue;
+                    case 'r': oss << '\r'; continue;
+                    case 't': oss << '\t'; continue;
                     case 'u':
                         // TODO
-                        break;
+                        MX_THROW("\\u Not implemented.");
+                        continue;
                     default:
                         MX_THROW(std::format("Unrecognized JSON escape sequence \\{} at position {}.", s[*cchParsed], *cchParsed - 1));
                     }
