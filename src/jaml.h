@@ -53,6 +53,16 @@ namespace jaml
         BLACK = 900
     };
 
+    enum JamlLogSeverity
+    {
+        SEV_INFO, SEV_WARN, SEV_ERROR
+    };
+
+    enum Resolved
+    {
+        RESOLVED = 0, UNRESOLVED = 1
+    };
+
     enum Side
     {
         TOP, LEFT, BOTTOM, RIGHT, CENTER /*only for text align*/, NONE
@@ -62,7 +72,7 @@ namespace jaml
 
     enum Unit
     {
-        PX, EM, PC, PT, AUTO
+        PX, EM, PT, AUTO // PC
     };
 
     // ========================================================================
@@ -103,9 +113,9 @@ namespace jaml
     class ResolvedPos
     {
     public:
-        std::optional<int> coord[4];
-        std::optional<int> width;
-        std::optional<int> height;
+        std::optional<int> coord[4] = { std::nullopt };
+        std::optional<int> width = std::nullopt;
+        std::optional<int> height = std::nullopt;
     };
 
     class Color
@@ -179,19 +189,19 @@ namespace jaml
         void hide();
 
         // Resolves the specified coordinate, if possible. Returns 1 if coord is unresolved, 0 otherwise.
-        size_t recalculatePos(Side const side);
+        Resolved recalculatePos(Side const side, bool * canMakeStuffUp = nullptr);
 
         // Resolves the width. Returns 1 if width is unresolved, 0 otherwise.
-        size_t recalculateWidth();
+        Resolved recalculateWidth();
 
         // Resolves the height. Returns 1 if height is unresolved, 0 otherwise.
-        size_t recalculateHeight();
+        Resolved recalculateHeight();
 
         // Resolves as many coordinates as possible (single pass) and returns the number of unresolved coordinates/dimensions.
-        size_t recalculateLayout();
+        size_t recalculateLayout(bool * canMakeStuffUp = nullptr);
 
         // Applies a tether offset to an otherwise resolved coordinate. Returns 1 if offset is unresolved (and resets the coord), 0 otherwise.
-        size_t applyOffset(Side const side, Measure const & offset);
+        Resolved applyOffset(Side const side, Measure const & offset, bool * canMakeStuffUp = nullptr);
 
         // Move futurePos to currentPos and redraw everything
         void commitLayout();
@@ -221,7 +231,7 @@ namespace jaml
         uint8_t opacity = 255;
         Measure padding[4];
         Element * parent = nullptr;
-        Size size;
+        Size size = { { 0, AUTO }, { 0, AUTO } };
         Tether tethers[4];
         Color textColor;
         ElementType type = ElementType::STATIC;
@@ -232,22 +242,44 @@ namespace jaml
         Element() {};
     };
 
+    class JamlParser
+    {
+    public:
+        JamlParser(std::string_view const & source, Window * window);
+
+    private:
+        std::string_view source;
+        size_t pos = 0;
+        size_t line = 1;
+        size_t col = 1;
+        Element * elem = nullptr;
+
+        void eat_whitespace();
+        std::string_view parse_key();
+        std::string parse_val();
+        void parse_node();
+
+    };
+
     class Window : public Element
     {
     public:
-        Window() { fontFace = "Arial"; fontWeight = REGULAR; fontStyle = NORMAL; fontSize = { 12, PT }; };
+        Window();
         Window(std::filesystem::path const & file);
-        Window(std::string const & source);
+        Window(std::string_view const & source);
         int start(HINSTANCE hInstance, int const nCmdShow);
+        void setForceResolve(bool const force = true);
+
     private:
+        void defaultFont();
         Window(Window const &) = delete;
+        bool throwOnUnresolved = true;
     };
 
     // ========================================================================
     // ================ Functions =============================================
     // ========================================================================
 
-    Window createWindowFromJamlFile(std::filesystem::path const & file);
     HFONT createFont(HWND const hwnd, std::string const & fontFace, int const fontSize, FontStyle fontStyle = FontStyle::NORMAL, int fontWeight = FontWeight::REGULAR);
     int getFontHeight(HWND hwnd, HFONT font);
     int getLineHeight(HWND hwnd, HFONT font);
@@ -256,15 +288,8 @@ namespace jaml
     bool isHSide(Side const side);
     bool isVSide(Side const side);
 
-    // Gets specified character from string, or 0 if out of range.
-    char peek(std::string_view const & str, size_t pos = 0);
+    // Internal logging function
+    void jaml_log(JamlLogSeverity const & sev, char const * message);
 
-    // Returns a string_view starting at the first non-whitespace character.
-    std::string_view eat_whitespace(std::string_view const & source);
-
-    // Returns the property name, value (decoded), and remaining/unparsed source
-    std::tuple<std::string_view, std::string, std::string_view> jaml_parser_read_property(std::string_view const & source);
-
-    // Populate the supplied element as specified by the next node.
-    std::string_view jaml_parser_parse_node(std::string_view  const & source, Element * element);
+    std::string sideToString(Side const side);
 }

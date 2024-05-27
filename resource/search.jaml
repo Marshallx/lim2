@@ -1,12 +1,13 @@
 {
-    id="outer"
+    id=outer
     {
-        id="queryBar"
-        left="outer>left"
-        right="outer>right"
+        id=queryBar
+        left=outer>left
+        right=outer>right
         {
-            id="searchBox"
-            type="edit"
+            id=searchBox
+            type=edit
+            width = 10em
         }
     }
 }

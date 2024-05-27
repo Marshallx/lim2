@@ -1,5 +1,7 @@
 #include <deque>
+#include <iostream>
 #include <fstream>
+#include <limits>
 #include <regex>
 
 #include <Windows.h>
@@ -72,29 +74,23 @@ namespace jaml
         return side == TOP || side == BOTTOM;
     }
 
-    char peek(std::string_view const & str, size_t pos)
+    std::string sideToString(Side const side)
     {
-        if (pos < str.size()) return str[pos];
-        return 0;
+        switch (side)
+        {
+        case TOP: return "top";
+        case LEFT: return "left";
+        case BOTTOM: return "bottom";
+        case RIGHT: return "right";
+        case CENTER: return "center";
+        case NONE: return "none";
+        }
+        MX_THROW("Unknown side.")
     }
 
-    std::string_view eat_whitespace(std::string_view const & source)
+    void jaml_log(JamlLogSeverity const & sev, char const * message)
     {
-        size_t pos = 0;
-        for (; pos < source.size(); ++pos)
-        {
-            switch (source[pos])
-            {
-            case ' ':
-            case '\t':
-            case '\r':
-            case '\n':
-            case '\0':
-                continue;
-            }
-            return { source.begin() + pos, source.end() };
-        }
-        return {};
+        std::cout << "JAML LOG: " << message;
     }
 
     LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -182,32 +178,35 @@ namespace jaml
         return child.get();
     }
 
-    size_t Element::applyOffset(Side const side, Measure const & offset)
+    Resolved Element::applyOffset(Side const side, Measure const & offset, bool * canMakeStuffUp)
     {
         switch (offset.unit)
         {
         case PX:
             futurePos.coord[side] = futurePos.coord[side].value() + static_cast<int>(offset.value);
-            return 0;
+            return RESOLVED;
 
         case EM:
             futurePos.coord[side] = futurePos.coord[side].value() + static_cast<int>(
                 static_cast<double>(getFontHeight(hwnd, font)) * offset.value);
-            return 0;
+            return RESOLVED;
 
-        case PC:
+        /*case PC:
             auto const of = (side == TOP || side == BOTTOM) ? parent->futurePos.height : parent->futurePos.width;
             if (of.has_value())
             {
                 futurePos.coord[side] = futurePos.coord[side].value() + static_cast<int>(
                     static_cast<double>(of.value()) * offset.value);
-                return 0;
+                return RESOLVED;
             }
             break;
+            */
         }
 
+        MX_THROW("Unsupported unit for offset calculation.");
+
         futurePos.coord[side].reset();
-        return 1;
+        return UNRESOLVED;
     }
 
     void Element::commitLayout()
@@ -281,7 +280,7 @@ namespace jaml
         case RIGHT: style |= ES_RIGHT; break;
         }
 
-        hwnd = CreateWindow(winClassName, Utf16String(label).c_str(), style, 10, 10, 200, 12, parent->hwnd, NULL, g_hInstance, NULL);
+        hwnd = CreateWindow(winClassName, Utf16String(label).c_str(), style, currentPos.coord[LEFT].value(), currentPos.coord[TOP].value(), currentPos.width.value(), currentPos.height.value(), parent->hwnd, NULL, g_hInstance, NULL);
         if (!hwnd) throw std::runtime_error("Failed to create element window");
     }
 
@@ -360,7 +359,7 @@ namespace jaml
 
     Measure Element::parseMeasure(std::string const & spec)
     {
-        constexpr static auto const pattern = R"(^([0-9]+(?:\.?[0-9]+)?)(em|px|%)?)?$)";
+        constexpr static auto const pattern = R"(^([0-9]+(?:\.?[0-9]+)?)(em|px|%)?$)";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
 
         auto matches = std::smatch{};
@@ -370,49 +369,60 @@ namespace jaml
         std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
         auto unit = Unit::PX;
         if (unitStr == "em") unit = EM;
-        else if (unitStr == "%") unit = PC;
+        else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.")
         else if (unitStr == "pt") unit = PT;
 
         return { offset, unit };
     }
 
-    size_t Element::recalculateHeight()
+    Resolved Element::recalculateHeight()
     {
-        if (futurePos.height.has_value()) return 0;
+        // Already calcualted?
+        if (futurePos.height.has_value()) return RESOLVED;
 
+        // From explicit coordinates
         if (futurePos.coord[TOP].has_value() && futurePos.coord[BOTTOM].has_value())
         {
-            futurePos.width = *(futurePos.coord[BOTTOM]) - *(futurePos.coord[TOP]);
-            return 0;
+            futurePos.height = *(futurePos.coord[BOTTOM]) - *(futurePos.coord[TOP]);
+            return RESOLVED;
         }
 
-        // TODO get height from explicit
-        /*
-        switch (size.width.unit)
+        // From explicit height
+        if (size.height.unit != AUTO)
         {
-        case AUTO:
-        case PX:
-        case EM:
-        case PC:
+            futurePos.height = size.height.toPixels(this->parent ? this->parent : this);
+            return RESOLVED;
         }
-        */
-        // TODO get height from children/content
-        return 1;
+
+        // Auto height
+        size_t max = 0;
+        for (auto const child : children)
+        {
+            auto const cur = child.get()->futurePos.coord[BOTTOM];
+            if (!cur.has_value()) return UNRESOLVED;
+            if (cur.value() > max) max = cur.value();
+        }
+        futurePos.height = max;
+        return RESOLVED;
     }
 
-    size_t Element::recalculateLayout()
+    size_t Element::recalculateLayout(bool * canMakeStuffUp)
     {
         //re-layout
 
         size_t unresolved = 0;
-        unresolved += recalculatePos(Side::TOP);
-        unresolved += recalculatePos(Side::LEFT);
-        unresolved += recalculatePos(Side::BOTTOM);
-        unresolved += recalculatePos(Side::RIGHT);
+        unresolved += recalculatePos(TOP, canMakeStuffUp);
+        unresolved += recalculatePos(LEFT, canMakeStuffUp);
+        unresolved += recalculatePos(BOTTOM);
+        unresolved += recalculatePos(RIGHT);
+
+        unresolved += recalculateWidth();
+        unresolved += recalculateHeight();
+
 
         for (auto child : children)
         {
-            unresolved += child.get()->recalculateLayout();
+            unresolved += child.get()->recalculateLayout(canMakeStuffUp);
         }
 
         return unresolved;
@@ -420,9 +430,9 @@ namespace jaml
         //TODO if (my update changes my size or position or that of my children) then (re-layout siblings)
     }
 
-    size_t Element::recalculatePos(Side const side)
+    Resolved Element::recalculatePos(Side const side, bool * canMakeStuffUp)
     {
-        if (futurePos.coord[side].has_value()) return 0;
+        if (futurePos.coord[side].has_value()) return RESOLVED;
 
         if (futurePos.coord[~side].has_value())
         {
@@ -432,63 +442,96 @@ namespace jaml
                 if (futurePos.height.has_value())
                 {
                     futurePos.coord[side] = *(futurePos.coord[~side]) - *(futurePos.height);
-                    return 0;
+                    return RESOLVED;
                 }
-                return 1;
+                break;
 
             case BOTTOM:
                 if (futurePos.height.has_value())
                 {
                     futurePos.coord[side] = *(futurePos.coord[~side]) + *(futurePos.height);
-                    return 0;
+                    return RESOLVED;
                 }
-                return 1;
+                break;
 
             case LEFT:
                 if (futurePos.width.has_value())
                 {
                     futurePos.coord[side] = *(futurePos.coord[~side]) - *(futurePos.width);
-                    return 0;
+                    return RESOLVED;
                 }
-                return 1;
+                break;
 
             case RIGHT:
                 if (futurePos.width.has_value())
                 {
                     futurePos.coord[side] = *(futurePos.coord[~side]) + *(futurePos.width);
-                    return 0;
+                    return RESOLVED;
                 }
-                return 1;
+                break;
+            }
+
+            if (canMakeStuffUp && *canMakeStuffUp && (side == TOP || side == LEFT))
+            {
+                jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, sideToString(side)).c_str());
+                futurePos.coord[side] = 0;
+                return RESOLVED;
             }
         }
 
         auto tether = tethers[side];
-        Element * other = tether.id.empty()
-            ? (i ? parent->getChild(i - 1) : nullptr)
-            : getRoot()->findElement(tether.id);
-
-        futurePos.coord[side] = other ? other->futurePos.coord[TOP] : 0;
-
-        if (futurePos.coord[side].has_value())
+        if (tether.side != NONE)
         {
-            return applyOffset(side, tether.offset);
+            Element * other = tether.id.empty()
+                ? (i ? parent->getChild(i - 1) : nullptr)
+                : getRoot()->findElement(tether.id);
+
+            futurePos.coord[side] = other ? other->futurePos.coord[tether.side] : 0;
+
+            if (futurePos.coord[side].has_value())
+            {
+                return applyOffset(side, tether.offset, canMakeStuffUp);
+            }
         }
-        return 1;
+        if (canMakeStuffUp && *canMakeStuffUp && (side == TOP || side == LEFT))
+        {
+            jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, sideToString(side)).c_str());
+            futurePos.coord[side] = 0;
+            *canMakeStuffUp = false;
+            return RESOLVED;
+        }
+        return UNRESOLVED;
     }
 
-    size_t Element::recalculateWidth()
+    Resolved Element::recalculateWidth()
     {
-        if (futurePos.width.has_value()) return 0;
+        // Already calculated?
+        if (futurePos.width.has_value()) return RESOLVED;
 
+        // From explicit coordinates
         if (futurePos.coord[LEFT].has_value() && futurePos.coord[RIGHT].has_value())
         {
             futurePos.width = *(futurePos.coord[RIGHT]) - *(futurePos.coord[LEFT]);
-            return 0;
+            return RESOLVED;
         }
 
-        // TODO get width from explicit
-        // TODO get width from children/content
-        return 1;
+        // From explicit width
+        if (size.width.unit != AUTO)
+        {
+            futurePos.width = size.width.toPixels(this->parent ? this->parent : this);
+            return RESOLVED;
+        }
+
+        // Auto width
+        size_t max = 0;
+        for (auto const child : children)
+        {
+            auto const cur = child.get()->futurePos.coord[RIGHT];
+            if (!cur.has_value()) return UNRESOLVED;
+            if (cur.value() > max) max = cur.value();
+        }
+        futurePos.width = max;
+        return RESOLVED;
     }
 
     void Element::removeChildren()
@@ -639,11 +682,11 @@ namespace jaml
     {
         // Example: id>left+5px
 
-        constexpr static auto const pattern = R"(^([^>]+)>(left|right|bottom|top|l|r|t|b)(?:(\+|\-[0-9]+(?:\.?[0-9]+)?)(em|px|%)?)?$)";
+        constexpr static auto const pattern = R"(^([^>]+)>(left|right|bottom|top|l|r|t|b)(?:(\+|\-[0-9]+(?:\.?[0-9]+)?)\s+?(em|px|%)?)?$)";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
         
         auto matches = std::smatch{};
-        if (!std::regex_search(spec, matches, regex)) MX_THROW("Invalid tether: bad format.");
+        if (!std::regex_search(spec, matches, regex)) MX_THROW("Invalid tether: bad format. Expected id>side[±offset em|px]");
         
         auto otherSide = mySide;
         switch (matches[2].str()[0])
@@ -659,7 +702,7 @@ namespace jaml
         std::string const unitStr = (matches.length() >= 4) ? matches[4].str() : "";
         auto unit = Unit::PX;
         if (unitStr == "em") unit = EM;
-        else if (unitStr == "%") unit = PC;
+        else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
         
         tethers[mySide] = { matches[1].str(), otherSide, { offset, unit } };
         // TODO Validate that no tether has cyclic dependencies
@@ -699,6 +742,8 @@ namespace jaml
         memcpy(f.lfFaceName, Utf16String(face).data(), (LF_FACESIZE - 1) * sizeof(WCHAR));
         if (font) DeleteObject(font);
         font = CreateFontIndirect(&f);
+
+        SendMessage(hwnd, WM_SETFONT, (WPARAM)font, 0);
     }
 
     int Measure::toPixels(Element const * element) const
@@ -709,7 +754,6 @@ namespace jaml
             return (int)value;
 
         case EM:
-        case PC:
             return static_cast<int>(static_cast<double>(getFontHeight(element->getHwnd(), element->getFont())) * value);
 
         case PT:
@@ -766,14 +810,22 @@ namespace jaml
         currentPos.height = rect.bottom - rect.top;
         futurePos = currentPos;
 
-        size_t unresolved = 1;
+        updateFont();
+
+        size_t unresolved = (std::numeric_limits<size_t>::max)();
         while (unresolved)
         {
             auto const previous = unresolved;
             unresolved = recalculateLayout();
             if (unresolved == previous)
             {
-                throw std::runtime_error("Failed to resolve one or more coordinates => cyclic tether dependency!");
+                if (throwOnUnresolved)
+                {
+                    MX_THROW("Failed to resolve one or more coordinates => cyclic tether dependency!");
+                }
+                bool canMakeStuffUp = true;
+                unresolved = recalculateLayout(&canMakeStuffUp);
+                if (unresolved == previous) MX_THROW("Failed to resolve any coordinates despite force-resolve!")
             }
         }
 
@@ -800,71 +852,148 @@ namespace jaml
         return (int)msg.wParam;
     }
 
-    std::tuple<std::string_view, std::string, std::string_view> jaml_parser_read_property(std::string_view & source)
+    void JamlParser::eat_whitespace()
     {
-        source = eat_whitespace(source);
-        size_t pos = 0;
-        for (; pos < source.size(); ++pos)
+        while(pos < source.size())
         {
-            if (source[pos] < 'a' || source[pos] > 'z') break;
+            switch (source[pos])
+            {
+            case '\n':
+                ++pos;
+                ++line;
+                col = 1;
+                continue;
+            case ' ':
+            case '\t':
+            case '\r':
+                ++pos;
+                ++col;
+                continue;
+            }
+            break;
         }
-        if (pos + 2 >= source.size()) MX_THROW("Unexpected end of input.");
-        if (source[pos] != '=') MX_THROW("Missing = after property name.");
-        size_t valPos = pos + 1;
-        if (source[valPos] != '"') MX_THROW("Missing property value (expected opening \")");
-
-        size_t cchParsed = 0;
-        auto const propval = json_unescape_string({ source.begin() + valPos, source.end() }, &cchParsed);
-
-        return {
-            { source.begin(), source.begin() + pos },
-            propval,
-            { source.begin() + valPos + cchParsed, source.end() }
-        };
     }
 
-    std::string_view jaml_parser_parse_node(std::string_view const & source, Element * element)
+    std::string_view JamlParser::parse_key()
     {
-        if (peek(source) != '{') MX_THROW("JAML input must start with {.");
-        std::string_view working = { source.begin() + 1, source.end() };
-        while (!working.empty())
+        auto const start = pos;
+        while(pos < source.size())
         {
-            working = eat_whitespace(working);
-            if (working.empty()) break;
+            if (source[pos] < 'a' || source[pos] > 'z')
+            {
+                return { source.begin() + start, source.begin() + pos };
+            }
+            ++pos;
+            ++col;
+        }
+        MX_THROW(std::format("JAML parse error: Unexpected end of input at {},{}", line, col).c_str());
+    }
 
-            switch (working[0])
+    std::string JamlParser::parse_val()
+    {
+        auto oss = std::ostringstream{};
+        bool const quoted = source[pos] == '"';
+        if (quoted) { ++pos; ++col; }
+        for (; pos < source.size(); ++pos, ++col)
+        {
+            switch (source[pos])
+            {
+            case '\r':
+            case '\n':
+            case ' ':
+            case '\t':
+            case '}':
+            case '=':
+                if (!quoted)
+                {
+                    ++pos; ++col;
+                    return oss.str();
+                }
+                if (source[pos] == '\r' || source[pos] == '\n') MX_THROW(std::format("JSON parse error: Unexpected end-of-line at {},{}", line, col).c_str());
+                oss << source[pos];
+                break;
+            case '"':
+                if (quoted)
+                {
+                    ++pos; ++col;
+                    return oss.str();
+                }
+                MX_THROW(std::format("JAML parse error: Unexpected '\"' in property value at {},{}", line, col).c_str());
+
+            case ('\\'):
+                ++pos; ++col;
+                if (pos >= source.size()) MX_THROW(std::format("JSON parse error: Unexpected end of input at {},{}", line, col).c_str());
+                switch (source[pos])
+                {
+                case '"':  oss << '"'; continue;
+                case '\\': oss << '\\'; continue;
+                case 'b': oss << '\b'; continue;
+                case 'f': oss << '\f'; continue;
+                case 'n': oss << '\n'; continue;
+                case 'r': oss << '\r'; continue;
+                case 't': oss << '\t'; continue;
+                case 'u':
+                    // TODO
+                    [[fallthrough]];
+                default:
+                    MX_THROW(std::format("JAML parse error: Unsupported escape sequence \\{} at {},{}.", source[pos], line, col).c_str());
+                }
+            default:
+                oss << source[pos];
+                break;
+            }
+        }
+        MX_THROW(std::format("JAML parse error: Unexpected end of input at {},{}.", line, col).c_str());
+    }
+
+    void JamlParser::parse_node()
+    {
+        if (pos >= source.size() || source[pos] != '{') MX_THROW("JAML parse error: Node must start with '{'");
+        ++pos; ++col;
+
+        while (pos < source.size())
+        {
+            eat_whitespace();
+            if (pos >= source.size()) break;
+
+            switch (source[pos])
             {
             case '{':
                 {
-                    auto child = element->addChild();
-                    working = jaml_parser_parse_node(working, child);
+                    elem = elem->addChild();
+                    parse_node();
                     continue;
                 }
+
             case '}':
-                return { working.begin() + 1, working.end() };
+                ++pos; ++col;
+                return;
+
             default:
-                auto r = jaml_parser_read_property(working);
-                auto propname = std::get<0>(r);
-                auto propval = std::get<1>(r);
-                working = std::get<2>(r);
-                if (propname == "id") element->setId(propval);
-                else if (propname == "value") element->setValue(propval);
-                else if (propname == "label") element->setLabel(propval);
-                else if (propname == "type") element->setType(propval);
-                else if (propname == "left") element->tether(LEFT, propval);
-                else if (propname == "right") element->tether(RIGHT, propval);
-                else if (propname == "top") element->tether(TOP, propval);
-                else if (propname == "bottom") element->tether(BOTTOM, propval);
-                else if (propname == "width") element->setWidth(propval);
-                else if (propname == "height") element->setHeight(propval);
-                else if (propname == "fontface") element->setFontFace(propval);
-                else if (propname == "fontsize") element->setFontSize(propval);
-                else MX_THROW(std::format("Unknown JAML property name {}", propname));
+                auto key = parse_key();
+                eat_whitespace();
+                if (source[pos] != '=') MX_THROW(std::format("JAML parse error: Missing '=' at {},{}", line, col).c_str());
+                ++pos; ++col;
+                eat_whitespace();
+                auto val = parse_val();
+                if (key == "id") elem->setId(val);
+                else if (key == "value") elem->setValue(val);
+                else if (key == "label") elem->setLabel(val);
+                else if (key == "type") elem->setType(val);
+                else if (key == "left") elem->tether(LEFT, val);
+                else if (key == "right") elem->tether(RIGHT, val);
+                else if (key == "top") elem->tether(TOP, val);
+                else if (key == "bottom") elem->tether(BOTTOM, val);
+                else if (key == "width") elem->setWidth(val);
+                else if (key == "height") elem->setHeight(val);
+                else if (key == "fontface") elem->setFontFace(val);
+                else if (key == "fontsize") elem->setFontSize(val);
+                else MX_THROW(std::format("JAML parse error: Unknown property name \"{}\"", key));
                 continue;
             }
         }
 
-        throw std::runtime_error("Unexpected end of JAML input.");
+        MX_THROW(std::format("JAML parse error: Unexpected end of input at {},{}.", line, col).c_str());
     }
 
     Element::Element(std::string_view const & id)
@@ -872,12 +1001,32 @@ namespace jaml
         this->id = id;
     }
 
-    Window::Window(std::string const & source) : Window()
+    JamlParser::JamlParser(std::string_view const & source, Window * window) : source(source), elem(window)
     {
-        jaml_parser_parse_node(source, this);
+        if (source.empty() || source[0] != '{') MX_THROW("JAML input must start with '{'");
+        parse_node();
+    };
+
+    void Window::defaultFont()
+    {
+        fontFace = "Arial";
+        fontWeight = REGULAR;
+        fontStyle = NORMAL;
+        fontSize = { 12, PT };
     }
 
-    Window::Window(std::filesystem::path const & file) : Window()
+    Window::Window()
+    {
+        defaultFont();
+    }
+
+    Window::Window(std::string_view const & jamlSource)
+    {
+        defaultFont();
+        JamlParser parser(jamlSource, this);
+    }
+
+    Window::Window(std::filesystem::path const & file)
     {
         FILE * f = fopen(file.string().c_str(), "r");
 
@@ -885,13 +1034,19 @@ namespace jaml
         fseek(f, 0, SEEK_END);
         size_t size = ftell(f);
 
-        auto source = std::string{};
-        source.resize(size);
+        auto jamlSource = std::string{};
+        jamlSource.resize(size);
 
         rewind(f);
-        fread(source.data(), sizeof(char), size, f);
+        fread(jamlSource.data(), sizeof(char), size, f);
 
-        jaml_parser_parse_node(source, this);
+        defaultFont();
+        JamlParser parser({ jamlSource }, this);
+    }
+
+    void Window::setForceResolve(bool const force)
+    {
+        throwOnUnresolved = !force;
     }
 
 }

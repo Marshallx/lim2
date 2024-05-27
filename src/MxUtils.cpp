@@ -164,6 +164,10 @@ namespace mx
             {
                 switch (s[*cchParsed])
                 {
+                case '\r':
+                case '\n':
+                    MX_THROW(std::format("JSON parse error: Unexpected end-of-line at position {}.", *cchParsed - 1).c_str());
+
                 case '"':
                     ++(*cchParsed);
                     return oss.str();
@@ -182,17 +186,16 @@ namespace mx
                     case 't': oss << '\t'; continue;
                     case 'u':
                         // TODO
-                        MX_THROW("\\u Not implemented.");
-                        continue;
+                        [[fallthrough]];
                     default:
-                        MX_THROW(std::format("Unrecognized JSON escape sequence \\{} at position {}.", s[*cchParsed], *cchParsed - 1));
+                        MX_THROW(std::format("JSON parse error: Unsupported escape sequence \\{} at position {}.", s[*cchParsed], *cchParsed - 1));
                     }
                 default:
                     oss << s[*cchParsed];
                     break;
                 }
             }
-            MX_THROW(std::format("Unexpected end of JSON string at position {}.", *cchParsed - 1));
+            MX_THROW(std::format("JSON parse error: Unexpected end of input at position {}.", *cchParsed - 1));
         }
     }
 }
