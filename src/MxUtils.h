@@ -28,6 +28,8 @@ namespace mx
         // Join a vector of strings into a single string.
         std::string Implode(std::vector<std::string> const & v, std::string_view const & delim = ",");
 
+        std::string create_guid();
+
         std::ostringstream formatError(std::string_view const & message, std::source_location const && source = {});
 
         std::filesystem::path GetModuleFilePath();

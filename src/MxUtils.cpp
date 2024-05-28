@@ -99,6 +99,17 @@ namespace mx
             return std::filesystem::path(selfexe);
         }
 
+        std::string create_guid()
+        {
+            GUID guid = {};
+            CoCreateGuid(&guid);
+            RPC_CSTR rpc = nullptr;
+            UuidToStringA(&guid, &rpc);
+            auto ret = std::string{ (char *)rpc };
+            RpcStringFreeA(&rpc);
+            return ret;
+        }
+
         bool json_escape_needed(unsigned char const c)
         {
             return (c < 0x1F || c == 0x7F || c == '"' || c == '\\');

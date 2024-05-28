@@ -171,7 +171,7 @@ namespace jaml
     Element * Element::addChild(std::string_view const & id)
     {
         auto const child = std::make_shared<Element>(Element{});
-        child.get()->id = id;
+        child.get()->id = id.empty() ? create_guid() : id;
         child.get()->parent = this;
         child.get()->i = children.size();
         children.push_back(child);
@@ -394,15 +394,38 @@ namespace jaml
             return RESOLVED;
         }
 
-        // Auto height
+        // Auto height...
         size_t max = 0;
+
+        // ...of children
         for (auto const child : children)
         {
             auto const cur = child.get()->futurePos.coord[BOTTOM];
             if (!cur.has_value()) return UNRESOLVED;
             if (cur.value() > max) max = cur.value();
         }
-        futurePos.height = max;
+
+        // ...of inherent content
+        size_t mine = label.empty() ? 0 : fontSize.toPixels(this);
+        auto const hdc = GetDC(hwnd);
+        switch (type)
+        {
+        case STATIC:
+            break;
+        case EDIT:
+            if (label.empty()) mine = getFontSize().toPixels(this);
+            break;
+        case CHECKBOX:
+            mine = max(mine, 12 * GetDeviceCaps(hdc, LOGPIXELSY) / 96 + 1);
+            break;
+        case COMBOBOX:
+            MX_THROW("COMBOBOX not yet implemented");
+        case LISTBOX:
+            MX_THROW("LISTBOX not yet implemented");
+        }
+        ReleaseDC(hwnd, hdc);
+
+        futurePos.height = max(mine, max);
         return RESOLVED;
     }
 
@@ -480,12 +503,18 @@ namespace jaml
         }
 
         auto tether = tethers[side];
-        if (tether.side != NONE)
+        // Tether to other element, or, if no tether specified, to sibling (top/left only)
+        if (tether.side != NONE || side == TOP || side == LEFT)
         {
             Element * other = tether.id.empty()
                 ? (i ? parent->getChild(i - 1) : nullptr)
                 : getRoot()->findElement(tether.id);
 
+            if (tether.side == NONE)
+            {
+                if (side == LEFT) tether.side = RIGHT; // adjacent to previous sibling
+                else tether.side = TOP; // same top as previous sibling
+            }
             futurePos.coord[side] = other ? other->futurePos.coord[tether.side] : 0;
 
             if (futurePos.coord[side].has_value())
@@ -680,32 +709,44 @@ namespace jaml
 
     void Element::tether(Side const mySide, std::string const & spec)
     {
-        // Example: id>left+5px
-
         constexpr static auto const pattern = R"(^([^>]+)>(left|right|bottom|top|l|r|t|b)(?:(\+|\-[0-9]+(?:\.?[0-9]+)?)\s+?(em|px|%)?)?$)";
+        constexpr static auto const simplePattern = R"(^(\-?[0-9]+(?:\.?[0-9]+)?)\s+?(em|px|%)?)?$)";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
+        static auto const simpleRegex = std::regex(simplePattern, std::regex_constants::ECMAScript);
         
         auto matches = std::smatch{};
-        if (!std::regex_search(spec, matches, regex)) MX_THROW("Invalid tether: bad format. Expected id>side[±offset em|px]");
-        
-        auto otherSide = mySide;
-        switch (matches[2].str()[0])
+        if (std::regex_search(spec, matches, regex))
         {
-        case 't': otherSide = TOP; break;
-        case 'l': otherSide = LEFT; break;
-        case 'b': otherSide = BOTTOM; break;
-        case 'r': otherSide = RIGHT; break;
-        }
-        if (isHSide(mySide) != isHSide(otherSide)) MX_THROW("Invalid tether: incompatible side axis.");
+            auto otherSide = mySide;
+            switch (matches[2].str()[0])
+            {
+            case 't': otherSide = TOP; break;
+            case 'l': otherSide = LEFT; break;
+            case 'b': otherSide = BOTTOM; break;
+            case 'r': otherSide = RIGHT; break;
+            }
+            if (isHSide(mySide) != isHSide(otherSide)) MX_THROW("Invalid tether: incompatible side axis.");
 
-        double offset = (matches.length() >= 3) ? atof(matches[3].str().c_str()) : 0;
-        std::string const unitStr = (matches.length() >= 4) ? matches[4].str() : "";
-        auto unit = Unit::PX;
-        if (unitStr == "em") unit = EM;
-        else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
-        
-        tethers[mySide] = { matches[1].str(), otherSide, { offset, unit } };
-        // TODO Validate that no tether has cyclic dependencies
+            double offset = (matches.length() >= 3) ? atof(matches[3].str().c_str()) : 0;
+            std::string const unitStr = (matches.length() >= 4) ? matches[4].str() : "";
+            auto unit = Unit::PX;
+            if (unitStr == "em") unit = EM;
+            else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
+
+            tethers[mySide] = { matches[1].str(), otherSide, { offset, unit } };
+            // TODO Validate that no tether has cyclic dependencies
+        }
+        else if (parent && std::regex_search(spec, matches, simpleRegex))
+        {
+            double offset = atof(matches[1].str().c_str());
+            if (mySide == BOTTOM || mySide == RIGHT) offset = -offset;
+            std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
+            auto unit = Unit::PX;
+            if (unitStr == "em") unit = EM;
+            else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
+            tethers[mySide] = { parent->id, mySide, { offset, unit } };
+        }
+        else MX_THROW(std::format("Invalid tether: bad format. Expected [id>side][±offset em|px], saw {}", spec).c_str());
     }
 
     void Element::updateFont()
@@ -758,7 +799,7 @@ namespace jaml
 
         case PT:
             auto hdc = GetDC(element->getHwnd());
-            return -MulDiv((int)value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+            return MulDiv((int)value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
         }
 
         MX_THROW("Specified unit cannot be converted to pixels.");
