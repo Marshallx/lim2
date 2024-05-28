@@ -4,11 +4,13 @@
         id=queryBar
         left=outer>left
         right=outer>right
+        height=5em;
         {
             id=searchBox
             type=edit
             width=10em
             top=4px
+            left=4px;
         }
     }
 }

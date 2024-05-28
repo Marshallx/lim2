@@ -130,10 +130,12 @@ namespace jaml
 
         case WM_CTLCOLORSTATIC:
         {
-            static HBRUSH hBrush = CreateSolidBrush(RGB(230, 0, 230));
+            auto elem = (Element *)GetPropA((HWND)lParam, "elem");
+            if (!elem) return DefWindowProc(hWnd, message, wParam, lParam);
+            static HBRUSH hBrush = CreateSolidBrush(RGB(elem->getBackgroundColor().red(), elem->getBackgroundColor().green(), elem->getBackgroundColor().blue()));
             HDC hdcStatic = (HDC)wParam;
-            SetTextColor(hdcStatic, RGB(0, 0, 0));
-            SetBkColor(hdcStatic, RGB(230, 0, 230));
+            SetTextColor(hdcStatic, RGB(elem->getTextColor().red(), elem->getTextColor().green(), elem->getTextColor().blue()));
+            SetBkColor(hdcStatic, RGB(elem->getBackgroundColor().red(), elem->getBackgroundColor().green(), elem->getBackgroundColor().blue()));
             return (INT_PTR)hBrush;
         }
         break;
@@ -282,6 +284,9 @@ namespace jaml
 
         hwnd = CreateWindow(winClassName, Utf16String(label).c_str(), style, currentPos.coord[LEFT].value(), currentPos.coord[TOP].value(), currentPos.width.value(), currentPos.height.value(), parent->hwnd, NULL, g_hInstance, NULL);
         if (!hwnd) throw std::runtime_error("Failed to create element window");
+        SetPropA(hwnd, "elem", this);
+        updateFont();
+        SendMessage(hwnd, WM_SETFONT, (WPARAM)getFont(), NULL);
     }
 
     Element * Element::findElement(std::string_view const & id)
@@ -293,6 +298,11 @@ namespace jaml
             if (found) return found;
         }
         return nullptr;
+    }
+
+    Color Element::getBackgroundColor() const noexcept
+    {
+        return backgroundColor;
     }
 
     Element * Element::getChild(size_t const i) const
@@ -345,6 +355,11 @@ namespace jaml
         auto root = this;
         while (root->parent) root = root->parent;
         return (Window *)root;
+    }
+
+    Color Element::getTextColor() const noexcept
+    {
+        return textColor;
     }
 
     std::string const & Element::getValue() const
@@ -431,8 +446,6 @@ namespace jaml
 
     size_t Element::recalculateLayout(bool * canMakeStuffUp)
     {
-        //re-layout
-
         size_t unresolved = 0;
         unresolved += recalculatePos(TOP, canMakeStuffUp);
         unresolved += recalculatePos(LEFT, canMakeStuffUp);
@@ -515,6 +528,7 @@ namespace jaml
                 if (side == LEFT) tether.side = RIGHT; // adjacent to previous sibling
                 else tether.side = TOP; // same top as previous sibling
             }
+
             futurePos.coord[side] = other ? other->futurePos.coord[tether.side] : 0;
 
             if (futurePos.coord[side].has_value())
@@ -709,8 +723,8 @@ namespace jaml
 
     void Element::tether(Side const mySide, std::string const & spec)
     {
-        constexpr static auto const pattern = R"(^([^>]+)>(left|right|bottom|top|l|r|t|b)(?:(\+|\-[0-9]+(?:\.?[0-9]+)?)\s+?(em|px|%)?)?$)";
-        constexpr static auto const simplePattern = R"(^(\-?[0-9]+(?:\.?[0-9]+)?)\s+?(em|px|%)?)?$)";
+        constexpr static auto const pattern = R"(^([^>]+)>(left|right|bottom|top|l|r|t|b)(?:(\+|\-[0-9]+(?:\.[0-9]+)?)(?:\s+)?(em|px|%)?)?$)";
+        constexpr static auto const simplePattern = R"(^(\-?[0-9]+(?:\.[0-9]+)?)(?:\s+)?(em|px|%)?$)";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
         static auto const simpleRegex = std::regex(simplePattern, std::regex_constants::ECMAScript);
         
@@ -843,12 +857,11 @@ namespace jaml
 
         RECT rect{};
         GetWindowRect(hwnd, &rect);
-        currentPos.coord[LEFT] = rect.left;
-        currentPos.coord[TOP] = rect.top;
-        currentPos.coord[RIGHT] = rect.right;
-        currentPos.coord[BOTTOM] = rect.bottom;
-        currentPos.width = rect.right - rect.left;
-        currentPos.height = rect.bottom - rect.top;
+        currentPos.coord[TOP] = 0;
+        currentPos.coord[LEFT] = 0;
+        currentPos.coord[BOTTOM] = currentPos.height = rect.bottom - rect.top;
+        currentPos.coord[RIGHT] = currentPos.width = rect.right - rect.left;
+        
         futurePos = currentPos;
 
         updateFont();
@@ -945,6 +958,7 @@ namespace jaml
             case '\t':
             case '}':
             case '=':
+            case ';':
                 if (!quoted)
                 {
                     ++pos; ++col;

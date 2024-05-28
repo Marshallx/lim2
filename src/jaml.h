@@ -150,12 +150,14 @@ namespace jaml
         void removeChildren();
         void remove();
 
+        Color getBackgroundColor() const noexcept;
         HWND getHwnd() const noexcept;
         HFONT getFont() const;
         std::string const & getFontFace() const;
         Measure const & getFontSize() const;
         FontStyle const & getFontStyle() const;
         int getFontWeight() const;
+        Color getTextColor() const noexcept;
         std::string const & getValue() const;
 
         static Measure parseMeasure(std::string const & spec);
