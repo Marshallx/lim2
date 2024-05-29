@@ -37,8 +37,8 @@ namespace mx
     void Limb::CreateQueryBar()
     {
         auto bar = gui->addChild("queryBar");
-        bar->tether(Side::LEFT, "outer", Side::LEFT, 0);
-        bar->tether(Side::RIGHT, "outer", Side::RIGHT, 0);
+        bar->tether(Edge::LEFT, "outer", Edge::LEFT, 0);
+        bar->tether(Edge::RIGHT, "outer", Edge::RIGHT, 0);
 
         auto searchBox = bar->addChild("searchBox");
         searchBox->setType(ElementType::EDIT);

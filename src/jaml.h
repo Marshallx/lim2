@@ -63,16 +63,33 @@ namespace jaml
         RESOLVED = 0, UNRESOLVED = 1
     };
 
-    enum Side
+    enum Edge : uint8_t
     {
-        TOP, LEFT, BOTTOM, RIGHT, CENTER /*only for text align*/, NONE
+        TOP = 0,
+        LEFT = 1,
+        BOTTOM = 2,
+        RIGHT = 3,
+        CENTER = 4, // only for text align
+        AUTO = (std::numeric_limits<uint8_t>::max)()
     };
+    Edge operator ~(Edge const edge);
 
+    enum Side : uint8_t
+    {
+        INNER = 0, OUTER = 1
+    };
     Side operator ~(Side const side);
+
+    enum Dimension : uint8_t
+    {
+        WIDTH = 0, HEIGHT = 1
+    };
+    
+    Dimension edgeToDimension(Edge const edge);
 
     enum Unit
     {
-        PX, EM, PT, AUTO // PC
+        PX, EM, PT, PC, NONE = (std::numeric_limits<uint8_t>::max)()
     };
 
     // ========================================================================
@@ -89,33 +106,25 @@ namespace jaml
         Measure(double const value) : value(value), unit(PX) {};
         Measure() : value(0), unit(PX) {};
 
-        int toPixels(Element const * element) const;
+        std::optional<int> toPixels(Element * context, Dimension const dim, Side const side = OUTER) const;
     };
 
 
     class Tether
     {
     public:
-        Tether() : side(NONE) {};
-        Tether(std::string_view const & id, Side const side, Measure const & offset) : id(id), side(side), offset(offset) {};
+        Tether() : edge(Edge::AUTO) {};
+        Tether(std::string_view const & id, Edge const edge, Measure const & offset) : id(id), edge(edge), offset(offset) {};
         std::string id;
-        Side side;
+        Edge edge;
         Measure offset;
-    };
-
-    class Size
-    {
-    public:
-        Measure width;
-        Measure height;
     };
 
     class ResolvedPos
     {
     public:
         std::optional<int> coord[4] = { std::nullopt };
-        std::optional<int> width = std::nullopt;
-        std::optional<int> height = std::nullopt;
+        std::optional<int> size[2] = { std::nullopt };
     };
 
     class Color
@@ -144,6 +153,7 @@ namespace jaml
         Element * addChild(std::string_view const & id = {});
 
         Element * getChild(size_t const i) const;
+        Element * getParent(bool const returnSelfIfRoot = true) noexcept;
         Element * findElement(std::string_view const & id);
         Window * getRoot() const noexcept;
 
@@ -151,7 +161,8 @@ namespace jaml
         void remove();
 
         Color getBackgroundColor() const noexcept;
-        HWND getHwnd() const noexcept;
+        HWND getOuterHwnd() const noexcept;
+        HWND getInnerHwnd() const noexcept;
         HFONT getFont() const;
         std::string const & getFontFace() const;
         Measure const & getFontSize() const;
@@ -173,8 +184,8 @@ namespace jaml
         void setImage(HBITMAP v);
         void setLabel(std::string_view const & v);
         void setOpacity(uint8_t const v);
-        void setPadding(Side const side, Measure const & v);
-        void setTextAlignH(Side const v);
+        void setPadding(Edge const edge, Measure const & v);
+        void setTextAlignH(Edge const v);
         void setTextColor(Color const & v);
         void setType(ElementType const v);
         void setType(std::string_view const & v);
@@ -182,39 +193,34 @@ namespace jaml
         void setVisible(bool const v = true);
         void setWidth(std::string const & spec);
 
-        void tether(Side const mySide, std::string_view const & otherId, Side const otherSide, Measure const & offset);
-        void tether(Side const mySide, std::string const & spec);
+        void tether(Edge const myEdge, std::string_view const & otherId, Edge const otherEdge, Measure const & offset);
+        void tether(Edge const myEdge, std::string const & spec);
 
         void updateFont();
 
         void show();
         void hide();
 
-        // Resolves the specified coordinate, if possible. Returns 1 if coord is unresolved, 0 otherwise.
-        Resolved recalculatePos(Side const side, bool * canMakeStuffUp = nullptr);
-
-        // Resolves the width. Returns 1 if width is unresolved, 0 otherwise.
-        Resolved recalculateWidth();
-
-        // Resolves the height. Returns 1 if height is unresolved, 0 otherwise.
-        Resolved recalculateHeight();
+        Resolved recalculatePos(Side const side, Edge const edge, bool * canMakeStuffUp = nullptr);
+        Resolved recalculateDimension(Side const side, Dimension const dim);
 
         // Resolves as many coordinates as possible (single pass) and returns the number of unresolved coordinates/dimensions.
         size_t recalculateLayout(bool * canMakeStuffUp = nullptr);
 
         // Applies a tether offset to an otherwise resolved coordinate. Returns 1 if offset is unresolved (and resets the coord), 0 otherwise.
-        Resolved applyOffset(Side const side, Measure const & offset, bool * canMakeStuffUp = nullptr);
+        Resolved applyOffset(Side const side, Edge const edge, Measure const & offset, bool * canMakeStuffUp = nullptr);
 
         // Move futurePos to currentPos and redraw everything
         void commitLayout();
+
+        ResolvedPos futurePos[2];
 
     private:
         Element(std::string_view const & source);
         void create();
 
     protected:
-        ResolvedPos currentPos;
-        ResolvedPos futurePos;
+        ResolvedPos currentPos[2];
         Color backgroundColor = { 0xFFFFFFFF };
         std::vector<std::shared_ptr<Element>> children = {};
         std::vector<std::string> classes;
@@ -222,10 +228,11 @@ namespace jaml
         std::string fontFace;
         FontStyle fontStyle = FontStyle::INHERIT;
         int fontWeight = 0;
-        Measure fontSize = {0, Unit::AUTO};
+        Measure fontSize = {0, Unit::NONE};
         HFONT font = 0;
-        Side textAlignH = LEFT;
-        HWND hwnd = 0;
+        Edge textAlignH = LEFT;
+        HWND hwndInner = 0;
+        HWND hwndOuter = 0;
         size_t i = 0;
         std::string id;
         HBITMAP image = 0;
@@ -233,7 +240,7 @@ namespace jaml
         uint8_t opacity = 255;
         Measure padding[4];
         Element * parent = nullptr;
-        Size size = { { 0, AUTO }, { 0, AUTO } };
+        Measure size[2] = {{0, NONE}, {0, NONE}};
         Tether tethers[4];
         Color textColor;
         ElementType type = ElementType::STATIC;
@@ -283,15 +290,15 @@ namespace jaml
     // ========================================================================
 
     HFONT createFont(HWND const hwnd, std::string const & fontFace, int const fontSize, FontStyle fontStyle = FontStyle::NORMAL, int fontWeight = FontWeight::REGULAR);
-    int getFontHeight(HWND hwnd, HFONT font);
-    int getLineHeight(HWND hwnd, HFONT font);
+    int getFontHeight(HWND hwnd);
+    int getLineHeight(HWND hwnd);
     int getDpi(HWND hwnd);
 
-    bool isHSide(Side const side);
-    bool isVSide(Side const side);
+    bool isHEdge(Edge const side);
+    bool isVEdge(Edge const side);
 
     // Internal logging function
     void jaml_log(JamlLogSeverity const & sev, char const * message);
 
-    std::string sideToString(Side const side);
+    std::string edgeToString(Edge const edge);
 }

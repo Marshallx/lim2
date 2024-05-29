@@ -36,7 +36,7 @@ namespace jaml
         return axis == X ? r.left : r.top;
     }
 
-    int getFontHeight(HWND hwnd, HFONT font)
+    int getFontHeight(HWND hwnd)
     {
         TEXTMETRIC tm = {};
         auto const hdc = GetDC(hwnd);
@@ -45,7 +45,7 @@ namespace jaml
         return tm.tmHeight;
     }
 
-    int getLineHeight(HWND hwnd, HFONT font)
+    int getLineHeight(HWND hwnd)
     {
         OUTLINETEXTMETRIC tm = {};
         auto const hdc = GetDC(hwnd);
@@ -64,28 +64,28 @@ namespace jaml
         return dpi;
     }
 
-    bool isHSide(Side const side)
+    bool isHEdge(Edge const edge)
     {
-        return side == LEFT || side == RIGHT;
+        return edge == LEFT || edge == RIGHT;
     }
 
-    bool isVSide(Side const side)
+    bool isVEdge(Edge const edge)
     {
-        return side == TOP || side == BOTTOM;
+        return edge == TOP || edge == BOTTOM;
     }
 
-    std::string sideToString(Side const side)
+    std::string edgeToString(Edge const edge)
     {
-        switch (side)
+        switch (edge)
         {
         case TOP: return "top";
         case LEFT: return "left";
         case BOTTOM: return "bottom";
         case RIGHT: return "right";
         case CENTER: return "center";
-        case NONE: return "none";
+        case AUTO: return "auto";
         }
-        MX_THROW("Unknown side.")
+        MX_THROW("Unknown edge.")
     }
 
     void jaml_log(JamlLogSeverity const & sev, char const * message)
@@ -180,54 +180,60 @@ namespace jaml
         return child.get();
     }
 
-    Resolved Element::applyOffset(Side const side, Measure const & offset, bool * canMakeStuffUp)
+    Resolved Element::applyOffset(Side const side, Edge const edge, Measure const & offset, bool * canMakeStuffUp)
     {
         switch (offset.unit)
         {
         case PX:
-            futurePos.coord[side] = futurePos.coord[side].value() + static_cast<int>(offset.value);
+            futurePos[side].coord[edge] = futurePos[side].coord[edge].value() + static_cast<int>(offset.value);
             return RESOLVED;
 
         case EM:
-            futurePos.coord[side] = futurePos.coord[side].value() + static_cast<int>(
-                static_cast<double>(getFontHeight(hwnd, font)) * offset.value);
+            futurePos[side].coord[edge] = futurePos[side].coord[edge].value() + static_cast<int>(
+                static_cast<double>(getFontHeight(hwndInner)) * offset.value);
             return RESOLVED;
 
-        /*case PC:
-            auto const of = (side == TOP || side == BOTTOM) ? parent->futurePos.height : parent->futurePos.width;
+        case PC:
+            auto const of = getParent()->futurePos[side].size[edgeToDimension(edge)];
             if (of.has_value())
             {
-                futurePos.coord[side] = futurePos.coord[side].value() + static_cast<int>(
+                futurePos[side].coord[edge] = futurePos[side].coord[edge].value() + static_cast<int>(
                     static_cast<double>(of.value()) * offset.value);
                 return RESOLVED;
             }
             break;
-            */
         }
 
         MX_THROW("Unsupported unit for offset calculation.");
 
-        futurePos.coord[side].reset();
+        futurePos[side].coord[edge].reset();
         return UNRESOLVED;
     }
 
     void Element::commitLayout()
     {
-        currentPos = futurePos;
-        futurePos = {};
+        currentPos[OUTER] = futurePos[OUTER]; futurePos[OUTER] = {};
+        currentPos[INNER] = futurePos[INNER]; futurePos[INNER] = {};
 
-        if (!hwnd)
+        if (!hwndOuter)
         {
             create();
         }
         else
         {
             // Reposition everything
-            SetWindowPos(hwnd, 0,
-                currentPos.coord[LEFT].value(),
-                currentPos.coord[TOP].value(),
-                currentPos.width.value(),
-                currentPos.height.value(),
+            SetWindowPos(hwndOuter, 0,
+                currentPos[OUTER].coord[LEFT].value(),
+                currentPos[OUTER].coord[TOP].value(),
+                currentPos[OUTER].size[WIDTH].value(),
+                currentPos[OUTER].size[HEIGHT].value(),
+                SWP_NOZORDER
+            );
+            SetWindowPos(hwndOuter, 0,
+                currentPos[INNER].coord[LEFT].value(),
+                currentPos[INNER].coord[TOP].value(),
+                currentPos[INNER].size[WIDTH].value(),
+                currentPos[INNER].size[HEIGHT].value(),
                 SWP_NOZORDER
             );
         }
@@ -241,7 +247,7 @@ namespace jaml
 
     void Element::create()
     {
-        if (hwnd) throw std::runtime_error("Element window already created!");
+        if (hwndOuter) throw std::runtime_error("Element window already created!");
         auto * winClassName = L"STATIC";
         DWORD style = WS_CHILD | WS_VISIBLE;
 
@@ -282,11 +288,16 @@ namespace jaml
         case RIGHT: style |= ES_RIGHT; break;
         }
 
-        hwnd = CreateWindow(winClassName, Utf16String(label).c_str(), style, currentPos.coord[LEFT].value(), currentPos.coord[TOP].value(), currentPos.width.value(), currentPos.height.value(), parent->hwnd, NULL, g_hInstance, NULL);
-        if (!hwnd) throw std::runtime_error("Failed to create element window");
-        SetPropA(hwnd, "elem", this);
+        hwndOuter = CreateWindow(L"STATIC", L"", WS_CHILD | WS_VISIBLE, currentPos[OUTER].coord[LEFT].value(), currentPos[OUTER].coord[TOP].value(), currentPos[OUTER].size[WIDTH].value(), currentPos[OUTER].size[HEIGHT].value(), parent->hwndInner, NULL, g_hInstance, NULL);
+        if (!hwndOuter) MX_THROW("Failed to create element outer window");
+        hwndInner = CreateWindow(winClassName, Utf16String(label).c_str(), style, currentPos[INNER].coord[LEFT].value(), currentPos[INNER].coord[TOP].value(), currentPos[INNER].size[WIDTH].value(), currentPos[INNER].size[HEIGHT].value(), hwndOuter, NULL, g_hInstance, NULL);
+        if (!hwndInner) MX_THROW("Failed to create element inner window");
+        
+        SetPropA(hwndOuter, "elem", this);
+        SetPropA(hwndInner, "elem", this);
         updateFont();
-        SendMessage(hwnd, WM_SETFONT, (WPARAM)getFont(), NULL);
+        SendMessage(hwndInner, WM_SETFONT, (WPARAM)getFont(), NULL);
+        SendMessage(hwndOuter, WM_SETFONT, (WPARAM)getFont(), NULL);
     }
 
     Element * Element::findElement(std::string_view const & id)
@@ -345,9 +356,20 @@ namespace jaml
         return element->fontWeight;
     }
 
-    HWND Element::getHwnd() const noexcept
+    HWND Element::getInnerHwnd() const noexcept
     {
-        return hwnd;
+        return hwndInner;
+    }
+
+    HWND Element::getOuterHwnd() const noexcept
+    {
+        return hwndOuter;
+    }
+
+    Element * Element::getParent(bool const returnSelfIfRoot) noexcept
+    {
+        if (returnSelfIfRoot && !parent) return this;
+        return parent;
     }
 
     Window * Element::getRoot() const noexcept
@@ -374,86 +396,39 @@ namespace jaml
 
     Measure Element::parseMeasure(std::string const & spec)
     {
-        constexpr static auto const pattern = R"(^([0-9]+(?:\.?[0-9]+)?)(em|px|%)?$)";
+        constexpr static auto const pattern = R"(^([0-9]+(?:\.?[0-9]+)?)(em|px|pt|%)?$)";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
 
         auto matches = std::smatch{};
-        if (!std::regex_search(spec, matches, regex)) MX_THROW("Invalid tether: bad format.");
+        if (!std::regex_search(spec, matches, regex)) MX_THROW(std::format("Invalid size: bad format. Expected N[.F][px|em|pt|%], saw {}", spec).c_str());
 
         double offset = atof(matches[1].str().c_str());
         std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
         auto unit = Unit::PX;
         if (unitStr == "em") unit = EM;
-        else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.")
+        else if (unitStr == "%") unit = PC;
         else if (unitStr == "pt") unit = PT;
 
         return { offset, unit };
     }
 
-    Resolved Element::recalculateHeight()
-    {
-        // Already calcualted?
-        if (futurePos.height.has_value()) return RESOLVED;
-
-        // From explicit coordinates
-        if (futurePos.coord[TOP].has_value() && futurePos.coord[BOTTOM].has_value())
-        {
-            futurePos.height = *(futurePos.coord[BOTTOM]) - *(futurePos.coord[TOP]);
-            return RESOLVED;
-        }
-
-        // From explicit height
-        if (size.height.unit != AUTO)
-        {
-            futurePos.height = size.height.toPixels(this->parent ? this->parent : this);
-            return RESOLVED;
-        }
-
-        // Auto height...
-        size_t max = 0;
-
-        // ...of children
-        for (auto const child : children)
-        {
-            auto const cur = child.get()->futurePos.coord[BOTTOM];
-            if (!cur.has_value()) return UNRESOLVED;
-            if (cur.value() > max) max = cur.value();
-        }
-
-        // ...of inherent content
-        size_t mine = label.empty() ? 0 : fontSize.toPixels(this);
-        auto const hdc = GetDC(hwnd);
-        switch (type)
-        {
-        case STATIC:
-            break;
-        case EDIT:
-            if (label.empty()) mine = getFontSize().toPixels(this);
-            break;
-        case CHECKBOX:
-            mine = max(mine, 12 * GetDeviceCaps(hdc, LOGPIXELSY) / 96 + 1);
-            break;
-        case COMBOBOX:
-            MX_THROW("COMBOBOX not yet implemented");
-        case LISTBOX:
-            MX_THROW("LISTBOX not yet implemented");
-        }
-        ReleaseDC(hwnd, hdc);
-
-        futurePos.height = max(mine, max);
-        return RESOLVED;
-    }
-
     size_t Element::recalculateLayout(bool * canMakeStuffUp)
     {
         size_t unresolved = 0;
-        unresolved += recalculatePos(TOP, canMakeStuffUp);
-        unresolved += recalculatePos(LEFT, canMakeStuffUp);
-        unresolved += recalculatePos(BOTTOM);
-        unresolved += recalculatePos(RIGHT);
+        unresolved += recalculateDimension(INNER, WIDTH);
+        unresolved += recalculateDimension(INNER, HEIGHT);
+        unresolved += recalculateDimension(OUTER, WIDTH);
+        unresolved += recalculateDimension(OUTER, HEIGHT);
 
-        unresolved += recalculateWidth();
-        unresolved += recalculateHeight();
+        unresolved += recalculatePos(OUTER, TOP, canMakeStuffUp);
+        unresolved += recalculatePos(OUTER, LEFT, canMakeStuffUp);
+        unresolved += recalculatePos(OUTER, BOTTOM);
+        unresolved += recalculatePos(OUTER, RIGHT);
+
+        unresolved += recalculatePos(INNER, TOP, canMakeStuffUp);
+        unresolved += recalculatePos(INNER, LEFT, canMakeStuffUp);
+        unresolved += recalculatePos(INNER, BOTTOM);
+        unresolved += recalculatePos(INNER, RIGHT);
 
 
         for (auto child : children)
@@ -466,114 +441,163 @@ namespace jaml
         //TODO if (my update changes my size or position or that of my children) then (re-layout siblings)
     }
 
-    Resolved Element::recalculatePos(Side const side, bool * canMakeStuffUp)
+    Resolved Element::recalculatePos(Side const side, Edge const edge, bool * canMakeStuffUp)
     {
-        if (futurePos.coord[side].has_value()) return RESOLVED;
+        if (futurePos[side].coord[edge].has_value()) return RESOLVED;
 
-        if (futurePos.coord[~side].has_value())
+        if (futurePos[side].coord[~edge].has_value())
         {
-            switch (side)
+            switch (edge)
             {
             case TOP:
-                if (futurePos.height.has_value())
+                if (futurePos[side].size[HEIGHT].has_value())
                 {
-                    futurePos.coord[side] = *(futurePos.coord[~side]) - *(futurePos.height);
+                    futurePos[side].coord[edge] = *(futurePos[side].coord[~edge]) - *(futurePos[side].size[HEIGHT]);
                     return RESOLVED;
                 }
                 break;
 
             case BOTTOM:
-                if (futurePos.height.has_value())
+                if (futurePos[side].size[HEIGHT].has_value())
                 {
-                    futurePos.coord[side] = *(futurePos.coord[~side]) + *(futurePos.height);
+                    futurePos[side].coord[edge] = *(futurePos[side].coord[~edge]) + *(futurePos[side].size[HEIGHT]);
                     return RESOLVED;
                 }
                 break;
 
             case LEFT:
-                if (futurePos.width.has_value())
+                if (futurePos[side].size[WIDTH].has_value())
                 {
-                    futurePos.coord[side] = *(futurePos.coord[~side]) - *(futurePos.width);
+                    futurePos[side].coord[edge] = *(futurePos[side].coord[~edge]) - *(futurePos[side].size[WIDTH]);
                     return RESOLVED;
                 }
                 break;
 
             case RIGHT:
-                if (futurePos.width.has_value())
+                if (futurePos[side].size[WIDTH].has_value())
                 {
-                    futurePos.coord[side] = *(futurePos.coord[~side]) + *(futurePos.width);
+                    futurePos[side].coord[edge] = *(futurePos[side].coord[~edge]) + *(futurePos[side].size[WIDTH]);
                     return RESOLVED;
                 }
                 break;
             }
 
-            if (canMakeStuffUp && *canMakeStuffUp && (side == TOP || side == LEFT))
+            if (canMakeStuffUp && *canMakeStuffUp && (edge == TOP || edge == LEFT))
             {
-                jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, sideToString(side)).c_str());
-                futurePos.coord[side] = 0;
+                jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, edgeToString(edge)).c_str());
+                futurePos[side].coord[edge] = 0;
                 return RESOLVED;
             }
         }
 
-        auto tether = tethers[side];
+        auto tether = tethers[edge];
         // Tether to other element, or, if no tether specified, to sibling (top/left only)
-        if (tether.side != NONE || side == TOP || side == LEFT)
+        if (tether.edge != AUTO || edge == TOP || edge == LEFT)
         {
             Element * other = tether.id.empty()
                 ? (i ? parent->getChild(i - 1) : nullptr)
                 : getRoot()->findElement(tether.id);
 
-            if (tether.side == NONE)
+            if (tether.edge == AUTO)
             {
-                if (side == LEFT) tether.side = RIGHT; // adjacent to previous sibling
-                else tether.side = TOP; // same top as previous sibling
+                if (edge == LEFT) tether.edge = RIGHT; // adjacent to previous sibling
+                else tether.edge = TOP; // same top as previous sibling
             }
 
-            futurePos.coord[side] = other ? other->futurePos.coord[tether.side] : 0;
+            futurePos[side].coord[edge] = other ? other->futurePos[side].coord[tether.edge] : 0;
 
-            if (futurePos.coord[side].has_value())
+            if (futurePos[side].coord[edge].has_value())
             {
-                return applyOffset(side, tether.offset, canMakeStuffUp);
+                return applyOffset(side, edge, tether.offset, canMakeStuffUp);
             }
         }
-        if (canMakeStuffUp && *canMakeStuffUp && (side == TOP || side == LEFT))
+        if (canMakeStuffUp && *canMakeStuffUp && (edge == TOP || edge == LEFT))
         {
-            jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, sideToString(side)).c_str());
-            futurePos.coord[side] = 0;
+            jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, edgeToString(edge)).c_str());
+            futurePos[side].coord[edge] = 0;
             *canMakeStuffUp = false;
             return RESOLVED;
         }
         return UNRESOLVED;
     }
 
-    Resolved Element::recalculateWidth()
+    Resolved Element::recalculateDimension(Side const side, Dimension const dim)
     {
         // Already calculated?
-        if (futurePos.width.has_value()) return RESOLVED;
+        if (futurePos[side].size[dim].has_value()) return RESOLVED;
 
         // From explicit coordinates
-        if (futurePos.coord[LEFT].has_value() && futurePos.coord[RIGHT].has_value())
+        auto const first = dim == WIDTH ? LEFT : TOP;
+        auto const second = dim == WIDTH ? RIGHT : BOTTOM;
+        if (futurePos[side].coord[first].has_value() && futurePos[side].coord[second].has_value())
         {
-            futurePos.width = *(futurePos.coord[RIGHT]) - *(futurePos.coord[LEFT]);
+            futurePos[side].size[dim] = *(futurePos[side].coord[second]) - *(futurePos[side].coord[first]);
             return RESOLVED;
         }
 
-        // From explicit width
-        if (size.width.unit != AUTO)
+        // From explicit size
+        if (side == OUTER)
         {
-            futurePos.width = size.width.toPixels(this->parent ? this->parent : this);
-            return RESOLVED;
+            if (size[dim].unit != NONE)
+            {
+                futurePos[side].size[dim] = size[dim].toPixels(this->getParent(), dim);
+                return futurePos[side].size[dim].has_value() ? RESOLVED : UNRESOLVED;
+            }
+        }
+        if (futurePos[~side].size[dim].has_value())
+        {
+            auto const pad1 = padding[first].toPixels(this, dim, INNER);
+            auto const pad2 = padding[second].toPixels(this, dim, INNER);
+            if (pad1.has_value() && pad2.has_value())
+            {
+                futurePos[side].size[dim] = futurePos[~side].size[dim].value() - ((side==INNER?1:-1)*(pad1.value() + pad2.value()));
+                return RESOLVED;
+            }
         }
 
-        // Auto width
+        // Auto ... of children
+        if (side == OUTER) return UNRESOLVED;
         size_t max = 0;
         for (auto const child : children)
         {
-            auto const cur = child.get()->futurePos.coord[RIGHT];
+            auto const cur = child.get()->futurePos[side].coord[second];
             if (!cur.has_value()) return UNRESOLVED;
             if (cur.value() > max) max = cur.value();
         }
-        futurePos.width = max;
+
+        // ...of inherent content
+        if (dim == HEIGHT)
+        {
+            // Height
+            auto fontPx = getFontHeight(hwndInner);
+            size_t mine = 0;
+            if (!label.empty()) mine = fontPx;
+            auto const hdc = GetDC(hwndInner);
+            switch (type)
+            {
+            case STATIC:
+                break;
+            case EDIT:
+                mine = fontPx;
+                break;
+            case CHECKBOX:
+                mine = max(mine, 12 * GetDeviceCaps(hdc, LOGPIXELSY) / 96 + 1);
+                break;
+            case COMBOBOX:
+                MX_THROW("COMBOBOX not yet implemented");
+            case LISTBOX:
+                MX_THROW("LISTBOX not yet implemented");
+            }
+            ReleaseDC(hwndInner, hdc);
+
+            futurePos[side].size[dim] = max(mine, max);
+        }
+        else
+        {
+            // Width
+            // TODO GetTextExtent various types
+        }
+
         return RESOLVED;
     }
 
@@ -582,7 +606,9 @@ namespace jaml
         for (auto child : children)
         {
             child.get()->removeChildren();
-            auto const hwnd = child.get()->hwnd;
+            auto hwnd = child.get()->hwndInner;
+            if (hwnd) DestroyWindow(hwnd);
+            hwnd = child.get()->hwndOuter;
             if (hwnd) DestroyWindow(hwnd);
         }
         children.clear();
@@ -591,7 +617,8 @@ namespace jaml
     void Element::remove()
     {
         removeChildren();
-        if (hwnd) DestroyWindow(hwnd);
+        if (hwndInner) DestroyWindow(hwndInner);
+        if (hwndOuter) DestroyWindow(hwndOuter);
 
         // Remove from parent
         parent->children.erase(parent->children.begin() + i, parent->children.begin() + i + 1);
@@ -639,7 +666,7 @@ namespace jaml
 
     void Element::setHeight(std::string const & spec)
     {
-        size.height = parseMeasure(spec);
+        size[HEIGHT] = parseMeasure(spec);
     }
 
     void Element::setId(std::string_view const & v)
@@ -663,13 +690,12 @@ namespace jaml
         opacity = v;
     }
 
-    void Element::setPadding(Side const side, Measure const & v)
+    void Element::setPadding(Edge const edge, Measure const & v)
     {
-        // TODO
-        padding[side] = v;
+        padding[edge] = v;
     }
 
-    void Element::setTextAlignH(Side const v)
+    void Element::setTextAlignH(Edge const v)
     {
         textAlignH = v;
     }
@@ -707,7 +733,7 @@ namespace jaml
 
     void Element::setWidth(std::string const & spec)
     {
-        size.width = parseMeasure(spec);
+        size[WIDTH] = parseMeasure(spec);
     }
 
     void Element::show()
@@ -715,13 +741,13 @@ namespace jaml
         setVisible(true);
     }
 
-    void Element::tether(Side const mySide, std::string_view const & otherId, Side const otherSide, Measure const & offset)
+    void Element::tether(Edge const mySide, std::string_view const & otherId, Edge const otherSide, Measure const & offset)
     {
         tethers[mySide] = { otherId, otherSide, offset };
         // TODO Validate that no tether has cyclic dependencies
     }
 
-    void Element::tether(Side const mySide, std::string const & spec)
+    void Element::tether(Edge const mySide, std::string const & spec)
     {
         constexpr static auto const pattern = R"(^([^>]+)>(left|right|bottom|top|l|r|t|b)(?:(\+|\-[0-9]+(?:\.[0-9]+)?)(?:\s+)?(em|px|%)?)?$)";
         constexpr static auto const simplePattern = R"(^(\-?[0-9]+(?:\.[0-9]+)?)(?:\s+)?(em|px|%)?$)";
@@ -739,13 +765,13 @@ namespace jaml
             case 'b': otherSide = BOTTOM; break;
             case 'r': otherSide = RIGHT; break;
             }
-            if (isHSide(mySide) != isHSide(otherSide)) MX_THROW("Invalid tether: incompatible side axis.");
+            if (isHEdge(mySide) != isHEdge(otherSide)) MX_THROW("Invalid tether: incompatible edge axis.");
 
             double offset = (matches.length() >= 3) ? atof(matches[3].str().c_str()) : 0;
             std::string const unitStr = (matches.length() >= 4) ? matches[4].str() : "";
             auto unit = Unit::PX;
             if (unitStr == "em") unit = EM;
-            else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
+            else if (unitStr == "%") { unit = PC; offset /= 100; }
 
             tethers[mySide] = { matches[1].str(), otherSide, { offset, unit } };
             // TODO Validate that no tether has cyclic dependencies
@@ -786,9 +812,9 @@ namespace jaml
         weight = getFontWeight();
 
         static LOGFONT f;
-        auto const hdc = GetDC(hwnd);
-        f.lfHeight = fontSize.toPixels(this);
-        ReleaseDC(hwnd, hdc);
+        auto const hdc = GetDC(hwndInner);
+        f.lfHeight = fontSize.toPixels(this, HEIGHT, INNER).value();
+        ReleaseDC(hwndInner, hdc);
         f.lfWeight = weight;
         f.lfItalic = style & FontStyle::ITALIC;
         f.lfUnderline = style & FontStyle::UNDERLINE;
@@ -798,10 +824,11 @@ namespace jaml
         if (font) DeleteObject(font);
         font = CreateFontIndirect(&f);
 
-        SendMessage(hwnd, WM_SETFONT, (WPARAM)font, 0);
+        SendMessage(hwndInner, WM_SETFONT, (WPARAM)font, 0);
+        SendMessage(hwndOuter, WM_SETFONT, (WPARAM)font, 0);
     }
 
-    int Measure::toPixels(Element const * element) const
+    std::optional<int> Measure::toPixels(Element * context, Dimension const dim, Side const side) const
     {
         switch (unit)
         {
@@ -809,26 +836,55 @@ namespace jaml
             return (int)value;
 
         case EM:
-            return static_cast<int>(static_cast<double>(getFontHeight(element->getHwnd(), element->getFont())) * value);
+            return static_cast<int>(static_cast<double>(getFontHeight(context->getInnerHwnd())) * value);
 
         case PT:
-            auto hdc = GetDC(element->getHwnd());
+        {
+            auto hdc = GetDC(context->getInnerHwnd());
             return MulDiv((int)value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+        }
+
+        case PC:
+            if (context->futurePos[side].size[dim].has_value())
+            {
+                return ((double)(context->futurePos[side].size[dim].value())) * value;
+            }
+            return std::nullopt;
         }
 
         MX_THROW("Specified unit cannot be converted to pixels.");
     }
 
-    Side operator ~(Side const side)
+    Edge operator ~(Edge const edge)
     {
-        switch (side)
+        switch (edge)
         {
         case TOP: return BOTTOM;
         case BOTTOM: return TOP;
         case LEFT: return RIGHT;
         case RIGHT: return LEFT;
         }
-        MX_THROW("Specified side has no opposite.");
+        MX_THROW("Specified edge has no opposite.");
+    }
+
+    Side operator ~(Side const side)
+    {
+        switch (side)
+        {
+        case INNER: return OUTER;
+        case OUTER: return INNER;
+        }
+        MX_THROW("Invalid side specified.");
+    }
+
+    Dimension edgeToDimension(Edge const edge)
+    {
+        switch (edge)
+        {
+        case LEFT: case RIGHT: return WIDTH;
+        case TOP: case BOTTOM: return HEIGHT;
+        }
+        MX_THROW("Invalid edge specified.");
     }
 
     int Window::start(HINSTANCE hInstance, int const nCmdShow)
@@ -850,19 +906,23 @@ namespace jaml
         wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
         RegisterClassExW(&wcex);
 
-        hwnd = CreateWindowW(wcex.lpszClassName, Utf16String(label).c_str(), WS_OVERLAPPEDWINDOW,
+        hwndOuter = CreateWindowW(wcex.lpszClassName, Utf16String(label).c_str(), WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, g_hInstance, nullptr);
-
-        if (!hwnd) throw std::runtime_error("Failed to create parent window");
+        if (!hwndOuter) throw std::runtime_error("Failed to create outer parent window");
 
         RECT rect{};
-        GetWindowRect(hwnd, &rect);
-        currentPos.coord[TOP] = 0;
-        currentPos.coord[LEFT] = 0;
-        currentPos.coord[BOTTOM] = currentPos.height = rect.bottom - rect.top;
-        currentPos.coord[RIGHT] = currentPos.width = rect.right - rect.left;
+        GetWindowRect(hwndOuter, &rect);
+        currentPos[INNER].coord[TOP] = 0;
+        currentPos[INNER].coord[LEFT] = 0;
+        currentPos[INNER].coord[BOTTOM] = currentPos[INNER].size[HEIGHT] = rect.bottom - rect.top;
+        currentPos[INNER].coord[RIGHT] = currentPos[INNER].size[WIDTH] = rect.right - rect.left;
         
-        futurePos = currentPos;
+        currentPos[OUTER] = currentPos[INNER];
+        futurePos[INNER] = currentPos[INNER];
+        futurePos[OUTER] = currentPos[OUTER];
+
+        hwndInner = CreateWindow(L"STATIC", L"", WS_CHILD | WS_VISIBLE, currentPos[OUTER].coord[LEFT].value(), currentPos[OUTER].coord[TOP].value(), currentPos[OUTER].size[WIDTH].value(), currentPos[OUTER].size[HEIGHT].value(), hwndOuter, NULL, g_hInstance, NULL);
+        if (!hwndOuter) throw std::runtime_error("Failed to create inner parent window");
 
         updateFont();
 
@@ -885,8 +945,8 @@ namespace jaml
 
         commitLayout();
 
-        ShowWindow(hwnd, nCmdShow);
-        UpdateWindow(hwnd);
+        ShowWindow(hwndOuter, nCmdShow);
+        UpdateWindow(hwndOuter);
 
         HACCEL hAccelTable = LoadAccelerators(g_hInstance, MAKEINTRESOURCE(IDC_LEGOINVENTORYMANAGER2));
 
