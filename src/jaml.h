@@ -131,20 +131,22 @@ namespace jaml
     {
     public:
         Color() {};
-        Color(uint32_t value) : rgba(value) {};
-        Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255) : rgba(RGB(red, green, blue) | (((DWORD)(BYTE)(alpha))<<24)) {};
-        uint32_t value() const noexcept { return rgba; }
-        uint8_t red() const noexcept { return LOBYTE(rgba); };
-        uint8_t green() const noexcept { return (LOBYTE(((WORD)(rgba)) >> 8)); };
-        uint8_t blue() const noexcept { return LOBYTE(rgba); };
-        uint8_t alpha() const noexcept { return rgba >> 24; };
-        void value(uint32_t value) noexcept { rgba = value; }
-        void red(uint8_t value) noexcept { rgba = (rgba & 0xFFFFFF00) | value; };
-        void green(uint8_t value) noexcept { rgba = (rgba & 0xFFFF00FF) | (value << 8); };
-        void blue(uint8_t value) noexcept { rgba = (rgba & 0xFF00FFFF) | (value << 16); };
-        void alpha(uint8_t value) noexcept { rgba = (rgba & 0x00FFFFFF) | (value << 24); };
+        Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255) : r(red), g(green), b(blue), a(alpha) {};
+        uint8_t red() const noexcept { return r; };
+        uint8_t green() const noexcept { return g; };
+        uint8_t blue() const noexcept { return b; };
+        uint8_t alpha() const noexcept { return a; };
+        void red(uint8_t v) noexcept { r = v; };
+        void green(uint8_t v) noexcept { g = v; };
+        void blue(uint8_t v) noexcept { b = v; };
+        void alpha(uint8_t v) noexcept { a = v; };
+        COLORREF ref() const noexcept { return RGB(r, g, b); }
+        static Color parse(std::string const & spec);
     private:
-        uint32_t rgba = 0;
+        uint8_t r = 0;
+        uint8_t g = 0;
+        uint8_t b = 0;
+        uint8_t a = 255;
     };
 
     class Element
@@ -160,7 +162,8 @@ namespace jaml
         void removeChildren();
         void remove();
 
-        Color getBackgroundColor() const noexcept;
+        HBRUSH getBackgroundBrush() const noexcept;
+        Color const & getBackgroundColor() const noexcept;
         HWND getOuterHwnd() const noexcept;
         HWND getInnerHwnd() const noexcept;
         HFONT getFont() const;
@@ -174,6 +177,7 @@ namespace jaml
         static Measure parseMeasure(std::string const & spec);
 
         void setBackgroundColor(Color const & v);
+        void setBackgroundColor(std::string const & spec);
         void setFontFace(std::string_view const & face);
         void setFontSize(Measure const & size);
         void setFontSize(std::string const & spec);
@@ -187,6 +191,7 @@ namespace jaml
         void setPadding(Edge const edge, Measure const & v);
         void setTextAlignH(Edge const v);
         void setTextColor(Color const & v);
+        void setTextColor(std::string const & spec);
         void setType(ElementType const v);
         void setType(std::string_view const & v);
         void setValue(std::string_view const & v);
@@ -196,6 +201,7 @@ namespace jaml
         void tether(Edge const myEdge, std::string_view const & otherId, Edge const otherEdge, Measure const & offset);
         void tether(Edge const myEdge, std::string const & spec);
 
+        void updateBackgroundBrush();
         void updateFont();
 
         void show();
@@ -221,7 +227,8 @@ namespace jaml
 
     protected:
         ResolvedPos currentPos[2];
-        Color backgroundColor = { 0xFFFFFFFF };
+        HBRUSH backgroundBrush = NULL;
+        Color backgroundColor = { 0xFF, 0xFF, 0xFF, 0xFF };
         std::vector<std::shared_ptr<Element>> children = {};
         std::vector<std::string> classes;
         bool created = false;

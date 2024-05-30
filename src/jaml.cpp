@@ -132,11 +132,10 @@ namespace jaml
         {
             auto elem = (Element *)GetPropA((HWND)lParam, "elem");
             if (!elem) return DefWindowProc(hWnd, message, wParam, lParam);
-            static HBRUSH hBrush = CreateSolidBrush(RGB(elem->getBackgroundColor().red(), elem->getBackgroundColor().green(), elem->getBackgroundColor().blue()));
             HDC hdcStatic = (HDC)wParam;
-            SetTextColor(hdcStatic, RGB(elem->getTextColor().red(), elem->getTextColor().green(), elem->getTextColor().blue()));
-            SetBkColor(hdcStatic, RGB(elem->getBackgroundColor().red(), elem->getBackgroundColor().green(), elem->getBackgroundColor().blue()));
-            return (INT_PTR)hBrush;
+            SetTextColor(hdcStatic, elem->getTextColor().ref());
+            SetBkColor(hdcStatic, elem->getBackgroundColor().ref());
+            return (INT_PTR)elem->getBackgroundBrush();
         }
         break;
 
@@ -169,6 +168,57 @@ namespace jaml
     // ========================================================================
     // ================ Methods ===============================================
     // ========================================================================
+
+    Color Color::parse(std::string const & spec)
+    {
+        constexpr static auto const pattern = R"(^\s*(?:(#|0x)\s*([0-9a-f]{2})\s*,?\s*([0-9a-f]{2})\s*?\s*([0-9a-f]{2}))|(rgb)\s*(?:\(|\s)?\s*([0-9]*(?:\.[0-9]*)%?)\s*[,\s]\s*([0-9]*(?:\.[0-9]*)%?)\s*[,\s]\s*([0-9]*(?:\.[0-9]*)%?)\s*\)?\s*$)";
+        static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript | std::regex_constants::icase);
+
+        auto matches = std::smatch{};
+        if (!std::regex_search(spec, matches, regex)) MX_THROW(std::format("Invalid color: bad format. Expected #RRGGBB or rgb(rrr,ggg,bbb) or rgb(N.F[%],N.F[%],N.F[%]), saw {}", spec).c_str());
+
+        auto const type = matches[1].str();
+        auto const red = matches[2].str();
+        auto const green = matches[3].str();
+        auto const blue = matches[4].str();
+
+        uint8_t r = 0;
+        uint8_t g = 0;
+        uint8_t b = 0;
+
+        constexpr static auto const parseComponent = [](std::string const & component)
+        {
+            size_t r = 0;
+            if (component.find_first_of('%') != std::string::npos)
+            {
+                r = (size_t)((std::stod(component) / 100.0L) * 255.0L);
+            }
+            else if (component.find_first_of('.') != std::string::npos)
+            {
+                r = (size_t)(std::stod(component) * 255.0L);
+            }
+            else
+            {
+                r = (size_t)std::stoull(component);
+            }
+            if (r > 255) MX_THROW(std::format("Invalid color: each component must resolve to an integer between 0 and 255. Saw \"{}\" => {}", component, r).c_str());
+            return (uint8_t)r;
+        };
+
+        if (type == "#" || type == "0x" || type == "0X")
+        {
+            r = (uint8_t)std::stoi(red, nullptr, 16);
+            g = (uint8_t)std::stoi(green, nullptr, 16);
+            b = (uint8_t)std::stoi(blue, nullptr, 16);
+        }
+        else
+        {
+            r = parseComponent(red);
+            g = parseComponent(green);
+            b = parseComponent(blue);
+        }
+        return { r,g,b };
+    }
 
     Element * Element::addChild(std::string_view const & id)
     {
@@ -311,7 +361,12 @@ namespace jaml
         return nullptr;
     }
 
-    Color Element::getBackgroundColor() const noexcept
+    HBRUSH Element::getBackgroundBrush() const noexcept
+    {
+        return backgroundBrush;
+    }
+
+    Color const & Element::getBackgroundColor() const noexcept
     {
         return backgroundColor;
     }
@@ -630,8 +685,14 @@ namespace jaml
 
     void Element::setBackgroundColor(Color const & v)
     {
-        if (backgroundColor.value() == v.value()) return;
+        if (backgroundColor.ref() == v.ref()) return;
         backgroundColor = v;
+        updateBackgroundBrush();
+    }
+    
+    void Element::setBackgroundColor(std::string const & spec)
+    {
+        setBackgroundColor(Color::parse(spec));
     }
 
     void Element::setFontFace(std::string_view const & face)
@@ -702,8 +763,13 @@ namespace jaml
 
     void Element::setTextColor(Color const & v)
     {
-        if (textColor.value() == v.value()) return;
+        if (textColor.ref() == v.ref()) return;
         textColor = v;
+    }
+
+    void Element::setTextColor(std::string const & spec)
+    {
+        textColor = Color::parse(spec);
     }
 
     void Element::setType(ElementType const v)
@@ -787,6 +853,12 @@ namespace jaml
             tethers[mySide] = { parent->id, mySide, { offset, unit } };
         }
         else MX_THROW(std::format("Invalid tether: bad format. Expected [id>side][±offset em|px], saw {}", spec).c_str());
+    }
+
+    void Element::updateBackgroundBrush()
+    {
+        if (backgroundBrush) DeleteObject(backgroundBrush);
+        backgroundBrush = CreateSolidBrush(getBackgroundColor().ref());
     }
 
     void Element::updateFont()
@@ -993,7 +1065,7 @@ namespace jaml
         auto const start = pos;
         while(pos < source.size())
         {
-            if (source[pos] < 'a' || source[pos] > 'z')
+            if (source[pos] != '-' && (source[pos] < 'a' || source[pos] > 'z'))
             {
                 return { source.begin() + start, source.begin() + pos };
             }
@@ -1103,6 +1175,8 @@ namespace jaml
                 else if (key == "height") elem->setHeight(val);
                 else if (key == "fontface") elem->setFontFace(val);
                 else if (key == "fontsize") elem->setFontSize(val);
+                else if (key == "color") elem->setTextColor(val);
+                else if (key == "background-color") elem->setBackgroundColor(val);
                 else MX_THROW(std::format("JAML parse error: Unknown property name \"{}\"", key));
                 continue;
             }

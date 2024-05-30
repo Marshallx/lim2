@@ -1,16 +1,19 @@
 {
     id=outer
+    background-color=#9CD6E4
     {
         id=queryBar
         left=outer>left
         right=outer>right
         height=5em;
+        background-color=#9CD6E4
         {
             id=searchBox
             type=edit
             width=10em
             top=4px
             left=4px;
+            background-color=#9CD6E4
         }
     }
 }
