@@ -4,11 +4,8 @@
 
 #include "MxUtils.h"
 
-namespace mx
+namespace mxi
 {
-    namespace MxUtils
-    {
-
         std::string Utf8String(std::wstring const & utf16)
         {
             auto size = WideCharToMultiByte(CP_UTF8, 0, utf16.data(), static_cast<int>(utf16.size()), NULL, 0, NULL, NULL);
@@ -208,5 +205,4 @@ namespace mx
             }
             MX_THROW(std::format("JSON parse error: Unexpected end of input at position {}.", *cchParsed - 1));
         }
-    }
 }

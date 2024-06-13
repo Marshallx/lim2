@@ -146,12 +146,20 @@
     <ClInclude Include="src\Config.h" />
     <ClInclude Include="src\Database.h" />
     <ClInclude Include="src\Enums.h" />
+    <ClInclude Include="src\JamlColor.h" />
+    <ClInclude Include="src\JamlElement.h" />
+    <ClInclude Include="src\JamlClass.h" />
+    <ClInclude Include="src\JamlFont.h" />
+    <ClInclude Include="src\JamlMeasure.h" />
+    <ClInclude Include="src\JamlParser.h" />
+    <ClInclude Include="src\JamlWindow.h" />
     <ClInclude Include="src\LegoInventoryManager2.h" />
     <ClInclude Include="src\Limb.h" />
     <ClInclude Include="resource\Resource.h" />
+    <ClInclude Include="src\MxiLogging.h" />
     <ClInclude Include="src\sqlite3\sqlite3.h" />
     <ClInclude Include="resource\targetver.h" />
-    <ClInclude Include="src\MxUtils.h" />
+    <ClInclude Include="src\MxiUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="edgemanifestxml.cpp" />
@@ -159,11 +167,19 @@
     <ClCompile Include="src\Config.cpp" />
     <ClCompile Include="src\Database.cpp" />
     <ClCompile Include="src\Enums.cpp" />
+    <ClCompile Include="src\JamlColor.cpp" />
+    <ClCompile Include="src\JamlElement.cpp" />
+    <ClCompile Include="src\JamlClass.cpp" />
+    <ClCompile Include="src\JamlFont.cpp" />
+    <ClCompile Include="src\JamlMeasure.cpp" />
+    <ClCompile Include="src\JamlParser.cpp" />
+    <ClCompile Include="src\JamlWindow.cpp" />
     <ClCompile Include="src\LegoInventoryManager2.cpp" />
     <ClCompile Include="src\Limb.cpp" />
     <ClCompile Include="src\LimbGui.cpp" />
+    <ClCompile Include="src\MxiLogging.cpp" />
     <ClCompile Include="src\sqlite3\sqlite3.c" />
-    <ClCompile Include="src\MxUtils.cpp" />
+    <ClCompile Include="src\MxiUtils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource\LegoInventoryManager2.rc" />

@@ -27,66 +27,13 @@ namespace jaml
     // ================ Functions =============================================
     // ========================================================================
 
-    int du2px(HWND const hwnd, int const du, Axis axis)
-    {
-        RECT r = {};
-        r.left = r.top = du;
-        r.right = r.bottom = 0;
-        MapDialogRect(hwnd, &r);
-        return axis == X ? r.left : r.top;
-    }
+    
 
-    int getFontHeight(HWND hwnd)
-    {
-        TEXTMETRIC tm = {};
-        auto const hdc = GetDC(hwnd);
-        auto const r = GetTextMetrics(hdc, &tm);
-        ReleaseDC(hwnd, hdc);
-        return tm.tmHeight;
-    }
+    
 
-    int getLineHeight(HWND hwnd)
-    {
-        OUTLINETEXTMETRIC tm = {};
-        auto const hdc = GetDC(hwnd);
-        auto const r = GetOutlineTextMetrics(hdc, sizeof(OUTLINETEXTMETRIC), &tm);
-        ReleaseDC(hwnd, hdc);
-        auto lineHeight = (-tm.otmDescent) + tm.otmLineGap + tm.otmAscent;
-        return MulDiv(lineHeight, getDpi(hwnd), 96);
-    }
+    
 
-    int getDpi(HWND hwnd)
-    {
-        HDC hdc = GetDC(hwnd);
-        if (!hdc) return 0;
-        int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-        ReleaseDC(0, hdc);
-        return dpi;
-    }
-
-    bool isHEdge(Edge const edge)
-    {
-        return edge == LEFT || edge == RIGHT;
-    }
-
-    bool isVEdge(Edge const edge)
-    {
-        return edge == TOP || edge == BOTTOM;
-    }
-
-    std::string edgeToString(Edge const edge)
-    {
-        switch (edge)
-        {
-        case TOP: return "top";
-        case LEFT: return "left";
-        case BOTTOM: return "bottom";
-        case RIGHT: return "right";
-        case CENTER: return "center";
-        case AUTO: return "auto";
-        }
-        MX_THROW("Unknown edge.")
-    }
+    
 
     void jaml_log(JamlLogSeverity const & sev, char const * message)
     {
@@ -169,56 +116,7 @@ namespace jaml
     // ================ Methods ===============================================
     // ========================================================================
 
-    Color Color::parse(std::string const & spec)
-    {
-        constexpr static auto const pattern = R"(^\s*(?:(#|0x)\s*([0-9a-f]{2})\s*,?\s*([0-9a-f]{2})\s*?\s*([0-9a-f]{2}))|(rgb)\s*(?:\(|\s)?\s*([0-9]*(?:\.[0-9]*)%?)\s*[,\s]\s*([0-9]*(?:\.[0-9]*)%?)\s*[,\s]\s*([0-9]*(?:\.[0-9]*)%?)\s*\)?\s*$)";
-        static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript | std::regex_constants::icase);
-
-        auto matches = std::smatch{};
-        if (!std::regex_search(spec, matches, regex)) MX_THROW(std::format("Invalid color: bad format. Expected #RRGGBB or rgb(rrr,ggg,bbb) or rgb(N.F[%],N.F[%],N.F[%]), saw {}", spec).c_str());
-
-        auto const type = matches[1].str();
-        auto const red = matches[2].str();
-        auto const green = matches[3].str();
-        auto const blue = matches[4].str();
-
-        uint8_t r = 0;
-        uint8_t g = 0;
-        uint8_t b = 0;
-
-        constexpr static auto const parseComponent = [](std::string const & component)
-        {
-            size_t r = 0;
-            if (component.find_first_of('%') != std::string::npos)
-            {
-                r = (size_t)((std::stod(component) / 100.0L) * 255.0L);
-            }
-            else if (component.find_first_of('.') != std::string::npos)
-            {
-                r = (size_t)(std::stod(component) * 255.0L);
-            }
-            else
-            {
-                r = (size_t)std::stoull(component);
-            }
-            if (r > 255) MX_THROW(std::format("Invalid color: each component must resolve to an integer between 0 and 255. Saw \"{}\" => {}", component, r).c_str());
-            return (uint8_t)r;
-        };
-
-        if (type == "#" || type == "0x" || type == "0X")
-        {
-            r = (uint8_t)std::stoi(red, nullptr, 16);
-            g = (uint8_t)std::stoi(green, nullptr, 16);
-            b = (uint8_t)std::stoi(blue, nullptr, 16);
-        }
-        else
-        {
-            r = parseComponent(red);
-            g = parseComponent(green);
-            b = parseComponent(blue);
-        }
-        return { r,g,b };
-    }
+    
 
     Element * Element::addChild(std::string_view const & id)
     {
@@ -449,23 +347,7 @@ namespace jaml
         setVisible(false);
     }
 
-    Measure Element::parseMeasure(std::string const & spec)
-    {
-        constexpr static auto const pattern = R"(^([0-9]+(?:\.?[0-9]+)?)(em|px|pt|%)?$)";
-        static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
-
-        auto matches = std::smatch{};
-        if (!std::regex_search(spec, matches, regex)) MX_THROW(std::format("Invalid size: bad format. Expected N[.F][px|em|pt|%], saw {}", spec).c_str());
-
-        double offset = atof(matches[1].str().c_str());
-        std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
-        auto unit = Unit::PX;
-        if (unitStr == "em") unit = EM;
-        else if (unitStr == "%") unit = PC;
-        else if (unitStr == "pt") unit = PT;
-
-        return { offset, unit };
-    }
+    
 
     size_t Element::recalculateLayout(bool * canMakeStuffUp)
     {
@@ -900,64 +782,9 @@ namespace jaml
         SendMessage(hwndOuter, WM_SETFONT, (WPARAM)font, 0);
     }
 
-    std::optional<int> Measure::toPixels(Element * context, Dimension const dim, Side const side) const
-    {
-        switch (unit)
-        {
-        case PX:
-            return (int)value;
+    
 
-        case EM:
-            return static_cast<int>(static_cast<double>(getFontHeight(context->getInnerHwnd())) * value);
-
-        case PT:
-        {
-            auto hdc = GetDC(context->getInnerHwnd());
-            return MulDiv((int)value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
-        }
-
-        case PC:
-            if (context->futurePos[side].size[dim].has_value())
-            {
-                return ((double)(context->futurePos[side].size[dim].value())) * value;
-            }
-            return std::nullopt;
-        }
-
-        MX_THROW("Specified unit cannot be converted to pixels.");
-    }
-
-    Edge operator ~(Edge const edge)
-    {
-        switch (edge)
-        {
-        case TOP: return BOTTOM;
-        case BOTTOM: return TOP;
-        case LEFT: return RIGHT;
-        case RIGHT: return LEFT;
-        }
-        MX_THROW("Specified edge has no opposite.");
-    }
-
-    Side operator ~(Side const side)
-    {
-        switch (side)
-        {
-        case INNER: return OUTER;
-        case OUTER: return INNER;
-        }
-        MX_THROW("Invalid side specified.");
-    }
-
-    Dimension edgeToDimension(Edge const edge)
-    {
-        switch (edge)
-        {
-        case LEFT: case RIGHT: return WIDTH;
-        case TOP: case BOTTOM: return HEIGHT;
-        }
-        MX_THROW("Invalid edge specified.");
-    }
+    
 
     int Window::start(HINSTANCE hInstance, int const nCmdShow)
     {
@@ -1038,204 +865,15 @@ namespace jaml
         return (int)msg.wParam;
     }
 
-    void JamlParser::eat_whitespace()
-    {
-        while(pos < source.size())
-        {
-            switch (source[pos])
-            {
-            case '\n':
-                ++pos;
-                ++line;
-                col = 1;
-                continue;
-            case ' ':
-            case '\t':
-            case '\r':
-                ++pos;
-                ++col;
-                continue;
-            }
-            break;
-        }
-    }
-
-    std::string_view JamlParser::parse_key()
-    {
-        auto const start = pos;
-        while(pos < source.size())
-        {
-            if (source[pos] != '-' && (source[pos] < 'a' || source[pos] > 'z'))
-            {
-                return { source.begin() + start, source.begin() + pos };
-            }
-            ++pos;
-            ++col;
-        }
-        MX_THROW(std::format("JAML parse error: Unexpected end of input at {},{}", line, col).c_str());
-    }
-
-    std::string JamlParser::parse_val()
-    {
-        auto oss = std::ostringstream{};
-        bool const quoted = source[pos] == '"';
-        if (quoted) { ++pos; ++col; }
-        for (; pos < source.size(); ++pos, ++col)
-        {
-            switch (source[pos])
-            {
-            case '\r':
-            case '\n':
-            case ' ':
-            case '\t':
-            case '}':
-            case '=':
-            case ';':
-                if (!quoted)
-                {
-                    ++pos; ++col;
-                    return oss.str();
-                }
-                if (source[pos] == '\r' || source[pos] == '\n') MX_THROW(std::format("JSON parse error: Unexpected end-of-line at {},{}", line, col).c_str());
-                oss << source[pos];
-                break;
-            case '"':
-                if (quoted)
-                {
-                    ++pos; ++col;
-                    return oss.str();
-                }
-                MX_THROW(std::format("JAML parse error: Unexpected '\"' in property value at {},{}", line, col).c_str());
-
-            case ('\\'):
-                ++pos; ++col;
-                if (pos >= source.size()) MX_THROW(std::format("JSON parse error: Unexpected end of input at {},{}", line, col).c_str());
-                switch (source[pos])
-                {
-                case '"':  oss << '"'; continue;
-                case '\\': oss << '\\'; continue;
-                case 'b': oss << '\b'; continue;
-                case 'f': oss << '\f'; continue;
-                case 'n': oss << '\n'; continue;
-                case 'r': oss << '\r'; continue;
-                case 't': oss << '\t'; continue;
-                case 'u':
-                    // TODO
-                    [[fallthrough]];
-                default:
-                    MX_THROW(std::format("JAML parse error: Unsupported escape sequence \\{} at {},{}.", source[pos], line, col).c_str());
-                }
-            default:
-                oss << source[pos];
-                break;
-            }
-        }
-        MX_THROW(std::format("JAML parse error: Unexpected end of input at {},{}.", line, col).c_str());
-    }
-
-    void JamlParser::parse_node()
-    {
-        if (pos >= source.size() || source[pos] != '{') MX_THROW("JAML parse error: Node must start with '{'");
-        ++pos; ++col;
-
-        while (pos < source.size())
-        {
-            eat_whitespace();
-            if (pos >= source.size()) break;
-
-            switch (source[pos])
-            {
-            case '{':
-                {
-                    elem = elem->addChild();
-                    parse_node();
-                    continue;
-                }
-
-            case '}':
-                ++pos; ++col;
-                return;
-
-            default:
-                auto key = parse_key();
-                eat_whitespace();
-                if (source[pos] != '=') MX_THROW(std::format("JAML parse error: Missing '=' at {},{}", line, col).c_str());
-                ++pos; ++col;
-                eat_whitespace();
-                auto val = parse_val();
-                if (key == "id") elem->setId(val);
-                else if (key == "value") elem->setValue(val);
-                else if (key == "label") elem->setLabel(val);
-                else if (key == "type") elem->setType(val);
-                else if (key == "left") elem->tether(LEFT, val);
-                else if (key == "right") elem->tether(RIGHT, val);
-                else if (key == "top") elem->tether(TOP, val);
-                else if (key == "bottom") elem->tether(BOTTOM, val);
-                else if (key == "width") elem->setWidth(val);
-                else if (key == "height") elem->setHeight(val);
-                else if (key == "fontface") elem->setFontFace(val);
-                else if (key == "fontsize") elem->setFontSize(val);
-                else if (key == "color") elem->setTextColor(val);
-                else if (key == "background-color") elem->setBackgroundColor(val);
-                else MX_THROW(std::format("JAML parse error: Unknown property name \"{}\"", key));
-                continue;
-            }
-        }
-
-        MX_THROW(std::format("JAML parse error: Unexpected end of input at {},{}.", line, col).c_str());
-    }
+    
 
     Element::Element(std::string_view const & id)
     {
         this->id = id;
     }
 
-    JamlParser::JamlParser(std::string_view const & source, Window * window) : source(source), elem(window)
-    {
-        if (source.empty() || source[0] != '{') MX_THROW("JAML input must start with '{'");
-        parse_node();
-    };
+    
 
-    void Window::defaultFont()
-    {
-        fontFace = "Arial";
-        fontWeight = REGULAR;
-        fontStyle = NORMAL;
-        fontSize = { 12, PT };
-    }
-
-    Window::Window()
-    {
-        defaultFont();
-    }
-
-    Window::Window(std::string_view const & jamlSource)
-    {
-        defaultFont();
-        JamlParser parser(jamlSource, this);
-    }
-
-    Window::Window(std::filesystem::path const & file)
-    {
-        FILE * f = fopen(file.string().c_str(), "r");
-
-        // Determine file size
-        fseek(f, 0, SEEK_END);
-        size_t size = ftell(f);
-
-        auto jamlSource = std::string{};
-        jamlSource.resize(size);
-
-        rewind(f);
-        fread(jamlSource.data(), sizeof(char), size, f);
-
-        defaultFont();
-        JamlParser parser({ jamlSource }, this);
-    }
-
-    void Window::setForceResolve(bool const force)
-    {
-        throwOnUnresolved = !force;
-    }
+   
 
 }
