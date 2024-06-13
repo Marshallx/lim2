@@ -31,6 +31,11 @@ namespace jaml
         m_color = color;
     }
 
+    void Font::SetColor(uint32_t const color)
+    {
+        m_color = { color };
+    }
+
     void Font::SetFace(std::string_view const & face)
     {
         m_face = face;

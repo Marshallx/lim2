@@ -2,6 +2,8 @@
 
 #include <Windows.h>
 
+#include "JamlClass.h"
+
 namespace jaml
 {
 
@@ -9,7 +11,7 @@ namespace jaml
 
     
 
-    class JamlElement
+    class JamlElement : JamlClass
     {
     public:
         static void registerClass(HINSTANCE hInstance);
@@ -92,7 +94,6 @@ namespace jaml
     protected:
         ResolvedPos currentPos[2];
         HBRUSH backgroundBrush = NULL;
-        Color backgroundColor = { 0xFF, 0xFF, 0xFF, 0xFF };
         std::vector<std::shared_ptr<Element>> children = {};
         std::vector<std::string> classes;
         bool created = false;

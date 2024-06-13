@@ -1,5 +1,6 @@
 #pragma once
 
+#include "JamlClass.h"
 #include "JamlElement.h"
 
 namespace jaml
@@ -10,12 +11,14 @@ namespace jaml
         JamlWindow();
         JamlWindow(std::filesystem::path const & file);
         JamlWindow(std::string_view const & source);
-        int start(HINSTANCE hInstance, int const nCmdShow);
-        void setForceResolve(bool const force = true);
+        int Start(HINSTANCE hInstance, int const nCmdShow);
+        void IgnoreErrors(bool const ignore = true);
 
     private:
-        void defaultFont();
         JamlWindow(JamlWindow const &) = delete;
+        void SetDefaults();
         bool throwOnUnresolved = true;
+        std::vector<std::shared_ptr<JamlClass>> definedClasses = {};
+
     };
 }

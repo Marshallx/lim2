@@ -8,23 +8,31 @@
 
 namespace jaml
 {
-    void JamlWindow::defaultFont()
+    void JamlWindow::SetDefaults()
     {
-        fontFace = "Arial";
-        fontWeight = REGULAR;
-        fontStyle = NORMAL;
-        fontSize = { 12, PT };
+        auto cp = std::make_shared<JamlClass>();
+        definedClasses.push_back(cp);
+        auto c = cp.get();
+        c->font = {};
+        auto f = c->font.value();
+        f.SetFace("Arial");
+        f.SetSize("12pt");
+        f.SetColor(0);
+        f.SetWeight(REGULAR);
+        f.SetStyle("normal");
+
+        c->SetBackgroundColor(0xFFFFFF);
     }
 
     JamlWindow::JamlWindow()
     {
-        defaultFont();
+        SetDefaults();
     }
 
     JamlWindow::JamlWindow(std::string_view const & jamlSource)
     {
-        defaultFont();
-        JamlParser parser(jamlSource, this);
+        SetDefaults();
+        JamlParser parser(jamlSource, definedClasses);
     }
 
     JamlWindow::JamlWindow(std::filesystem::path const & file)
@@ -41,12 +49,12 @@ namespace jaml
         rewind(f);
         fread(jamlSource.data(), sizeof(char), size, f);
 
-        defaultFont();
-        JamlParser parser({ jamlSource }, this);
+        SetDefaults();
+        JamlParser parser({ jamlSource }, definedClasses);
     }
 
-    void JamlWindow::setForceResolve(bool const force)
+    void JamlWindow::IgnoreErrors(bool const ignore)
     {
-        throwOnUnresolved = !force;
+        throwOnUnresolved = !ignore;
     }
 }

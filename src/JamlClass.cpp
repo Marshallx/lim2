@@ -10,6 +10,11 @@ namespace jaml
         backgroundColor = color;
     }
 
+    void JamlClass::SetBackgroundColor(uint32_t const color)
+    {
+        backgroundColor = { color };
+    }
+
     void JamlClass::SetBackgroundColor(std::string_view const & color)
     {
         SetBackgroundColor(Color::Parse(color));
@@ -160,7 +165,7 @@ namespace jaml
             tethers[mySide] = { matches[1].str(), otherSide, { offset, unit } };
             // TODO Validate that no tether has cyclic dependencies
         }
-        else if (parent && std::regex_search(spec, matches, simpleRegex))
+        else if ( std::regex_search(spec, matches, simpleRegex))
         {
             double offset = atof(matches[1].str().c_str());
             if (mySide == BOTTOM || mySide == RIGHT) offset = -offset;
@@ -168,7 +173,7 @@ namespace jaml
             auto unit = Unit::PX;
             if (unitStr == "em") unit = EM;
             else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
-            tethers[mySide] = { parent->id, mySide, { offset, unit } };
+            tethers[mySide] = { {}, mySide, {offset, unit} };
         }
         else MX_THROW(std::format("Invalid tether: bad format. Expected [id>side][±offset em|px], saw {}", spec).c_str());
     }

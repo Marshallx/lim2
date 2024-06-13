@@ -7,6 +7,7 @@
 #include "JamlColor.h"
 #include "JamlFont.h"
 #include "JamlMeasure.h"
+#include "MxiLogging.h"
 
 namespace jaml
 {
@@ -15,9 +16,15 @@ namespace jaml
         GENERIC = 0, TEXT, EDITBOX, BUTTON, LISTBOX, COMBOBOX, CHECKBOX, CLASS
     };
 
+    class JamlWindow;
+
     class JamlClass
     {
+        friend JamlWindow;
+
     public:
+        JamlClass(std::string_view const & name) : name(name)
+            { if (name.empty()) MX_THROW("Class requires a name"); };
         void SetBackgroundColor(Color const & color);
         void SetBackgroundColor(std::string_view const & color);
         void SetContentAlignmentH(Edge const edge);
@@ -36,7 +43,8 @@ namespace jaml
         void SetLabel(std::string_view const & label);
         void SetOpacity(uint8_t const opacity);
         void SetPadding(Edge const edge, Measure const & v);
-        void SetTether(Edge const mySide, std::string_view const & otherId, Edge const otherSide, Measure const & offset);
+        void SetTether(Edge const mySide, std::string_view const & otherId,
+            Edge const otherSide, Measure const & offset);
         void SetTether(Edge const mySide, std::string const & spec);
         void SetValue(std::string_view const & v);
         void SetVisible(bool const v);
@@ -44,15 +52,13 @@ namespace jaml
         void hide();
         void show();
 
-
+    private:
         std::optional<Edge> alignContentH;
         std::optional<Edge> alignContentV;
         std::optional<Color> backgroundColor;
         std::optional<Color> borderColor;
         std::optional<Measure> borderSize;
         std::optional<Measure> borderRadius;
-        std::vector<std::string> classes;
-        std::vector<std::string> children;
         JamlElementType elementType = GENERIC;
         std::optional<Font> font;
         std::filesystem::path imagePath;
@@ -64,5 +70,7 @@ namespace jaml
         std::optional<Tether> tethers[4];
         std::string value;
         bool visible = true;
+
+        JamlClass() {};
     };
 }

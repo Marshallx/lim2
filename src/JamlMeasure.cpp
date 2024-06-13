@@ -112,7 +112,7 @@ namespace jaml
             return (int)value;
 
         case EM:
-            return static_cast<int>(static_cast<double>(context->getFontHeight()) * value));
+            return static_cast<int>(static_cast<double>(getFontHeight(context->getHwnd())) * value));
 
         case PT:
         {
@@ -128,7 +128,7 @@ namespace jaml
             return std::nullopt;
         }
 
-        MX_THROW("Specified unit cannot be converted to pixels.");
+        MX_THROW("Unsupported unit for conversion to pixels.");
     }
 
 }

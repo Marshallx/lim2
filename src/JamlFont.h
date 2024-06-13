@@ -35,6 +35,7 @@ namespace jaml
     public:
         void SetColor(std::string_view const & color);
         void SetColor(Color const & color);
+        void SetColor(uint32_t const color);
         void SetFace(std::string_view const & face);
         void SetSize(std::string_view const & size);
         void SetStyle(std::string_view const & style);
