@@ -120,26 +120,24 @@ namespace jaml
         }
     }
 
-    JamlParser::JamlParser(std::string_view const & source, std::vector<std::shared_ptr<JamlClass>> & classes) : source(source), classes(classes)
+    JamlParser::JamlParser(std::string_view const & source, ClassMap & classes) : source(source)
     {
         while (loc.pos < source.size())
         {
             EatComments();
             if (loc.pos >= source.size()) return;
-            ParseSection();
+            ParseSection(classes);
         }
     };
 
-    void JamlParser::ParseSection()
+    void JamlParser::ParseSection(ClassMap & classes)
     {
         Expect('[');
         NextChar();
         EatWhitespace();
 
         // Read section name
-        auto cp = std::make_shared<JamlClass>(JamlClass{});
-        classes.push_back(cp);
-        auto c = cp.get();
+        auto name = std::string{};
         auto start = loc.pos;
         for(;; NextChar())
         {
@@ -151,12 +149,19 @@ namespace jaml
             }
             if (source[loc.pos] == ']')
             {
-                c->name = source.substr(start, loc.pos);
+                name = source.substr(start, loc.pos);
+                if (classes.contains(name.c_str()))
+                {
+                    Error(std::format("Duplicate {} name \"{}\"", name.starts_with('.') ? "class" : "element", name));
+                }
                 NextChar();
                 break;
             }
             if (source[loc.pos] == ';') Expected(']');
         }
+        auto cp = std::make_shared<JamlClass>(JamlClass{name});
+        classes[name] = cp;
+        auto c = cp.get();
         for (;; NextChar())
         {
             EatComments();
@@ -172,22 +177,23 @@ namespace jaml
             auto const value = ParseValue();
             try
             {
-                if (key == "value") c->setValue(value);
-                else if (key == "label") c->setLabel(value);
-                else if (key == "type") c->setType(value);
-                else if (key == "left") c->tether(LEFT, val);
-                else if (key == "right") c->tether(RIGHT, val);
-                else if (key == "top") c->tether(TOP, val);
-                else if (key == "bottom") c->tether(BOTTOM, val);
-                else if (key == "width") c->setWidth(val);
-                else if (key == "height") c->setHeight(val);
-                else if (key == "fontface") c->setFontFace(val);
-                else if (key == "fontsize") c->setFontSize(val);
-                else if (key == "color") c->setFontColor(val);
-                else if (key == "background-color") c->setBackgroundColor(val);
+                if (key == "parent") c->SetParentName(value);
+                else if (key == "background-color") c->SetBackgroundColor(value);
+                else if (key == "bottom") c->SetTether(BOTTOM, value);
+                else if (key == "class") c->AddClasses(value);
+                else if (key == "color") c->SetFontColor(value);
+                else if (key == "fontface") c->SetFontFace(value);
+                else if (key == "fontsize") c->SetFontSize(value);
+                else if (key == "height") c->SetHeight(value);
+                else if (key == "label") c->SetLabel(value);
+                else if (key == "left") c->SetTether(LEFT, value);
+                else if (key == "right") c->SetTether(RIGHT, value);
+                else if (key == "top") c->SetTether(TOP, value);
+                else if (key == "type") c->SetElementType(value);
+                else if (key == "width") c->SetWidth(value);
                 else
                 {
-                    MX_THROW("Unknown property name");
+                    MX_THROW("Unknown property name"); // key appended below
                 }
             }
             catch (std::exception const & err)

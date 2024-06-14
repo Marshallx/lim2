@@ -2,7 +2,9 @@
 
 #include <Windows.h>
 
-#include "MxUtils.h"
+#include "MxiLogging.h"
+
+#include "MxiUtils.h"
 
 namespace mxi
 {
@@ -57,7 +59,7 @@ namespace mxi
             WritePrivateProfileString(section16.c_str(), key16.c_str(), value16.c_str(), path.wstring().c_str());
         }
 
-        std::vector<std::string> Explode(std::string_view const & s, std::string_view const & delim)
+        std::vector<std::string> explode(std::string_view const & s, std::string_view const & delim)
         {
             auto vs = std::vector<std::string>{};
             auto pos = size_t{};
@@ -69,7 +71,7 @@ namespace mxi
             return vs;
         }
 
-        std::string Implode(std::vector<std::string> const & vs, std::string_view const & delim)
+        std::string implode(std::vector<std::string> const & vs, std::string_view const & delim)
         {
             auto s = std::string{};
             for (auto v : vs)
@@ -204,5 +206,18 @@ namespace mxi
                 }
             }
             MX_THROW(std::format("JSON parse error: Unexpected end of input at position {}.", *cchParsed - 1));
+        }
+
+        void trim(std::string & str)
+        {
+            static constexpr auto kWhitespace = " \t\r\n";
+            auto const start = str.find_first_not_of(kWhitespace);
+            auto const end = str.find_last_not_of(kWhitespace);
+            if (start != std::string::npos)
+            {
+                str.erase(end + 1);
+                str.erase(0, start);
+            }
+            else str.clear();
         }
 }

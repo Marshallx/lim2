@@ -123,8 +123,8 @@ namespace jaml
         auto const child = std::make_shared<Element>(Element{});
         child.get()->id = id.empty() ? create_guid() : id;
         child.get()->parent = this;
-        child.get()->i = children.size();
-        children.push_back(child);
+        child.get()->i = m_children.size();
+        m_children.push_back(child);
         return child.get();
     }
 
@@ -187,7 +187,7 @@ namespace jaml
         }
 
 
-        for (auto child : children)
+        for (auto child : m_children)
         {
             child.get()->commitLayout();
         }
@@ -251,7 +251,7 @@ namespace jaml
     Element * Element::findElement(std::string_view const & id)
     {
         if (this->id == id) return this;
-        for (auto const & child : children)
+        for (auto const & child : m_children)
         {
             auto const found = child.get()->findElement(id);
             if (found) return found;
@@ -271,7 +271,7 @@ namespace jaml
 
     Element * Element::getChild(size_t const i) const
     {
-        return children.at(i).get();
+        return m_children.at(i).get();
     }
 
     HFONT Element::getFont() const
@@ -368,7 +368,7 @@ namespace jaml
         unresolved += recalculatePos(INNER, RIGHT);
 
 
-        for (auto child : children)
+        for (auto child : m_children)
         {
             unresolved += child.get()->recalculateLayout(canMakeStuffUp);
         }
@@ -495,7 +495,7 @@ namespace jaml
         // Auto ... of children
         if (side == OUTER) return UNRESOLVED;
         size_t max = 0;
-        for (auto const child : children)
+        for (auto const child : m_children)
         {
             auto const cur = child.get()->futurePos[side].coord[second];
             if (!cur.has_value()) return UNRESOLVED;
@@ -540,7 +540,7 @@ namespace jaml
 
     void Element::removeChildren()
     {
-        for (auto child : children)
+        for (auto child : m_children)
         {
             child.get()->removeChildren();
             auto hwnd = child.get()->hwndInner;
@@ -548,7 +548,7 @@ namespace jaml
             hwnd = child.get()->hwndOuter;
             if (hwnd) DestroyWindow(hwnd);
         }
-        children.clear();
+        m_children.clear();
     }
 
     void Element::remove()
@@ -558,10 +558,10 @@ namespace jaml
         if (hwndOuter) DestroyWindow(hwndOuter);
 
         // Remove from parent
-        parent->children.erase(parent->children.begin() + i, parent->children.begin() + i + 1);
-        for (size_t x = 0; i < parent->children.size(); ++i)
+        parent->m_children.erase(parent->m_children.begin() + i, parent->m_children.begin() + i + 1);
+        for (size_t x = 0; i < parent->m_children.size(); ++i)
         {
-            parent->children.at(x).get()->i = x;
+            parent->m_children.at(x).get()->i = x;
         }
     }
 

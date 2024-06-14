@@ -3,17 +3,19 @@
 #include <Windows.h>
 
 #include "JamlClass.h"
+#include "MxiLogging.h"
 
 namespace jaml
 {
 
     LRESULT JamlElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-    
-
-    class JamlElement : JamlClass
+    class JamlElement
     {
     public:
+        JamlElement(std::string_view const & name) : m_name(std::string{ name })
+            { if (name.empty()) MX_THROW("All elements require a unique name"); };
+
         static void registerClass(HINSTANCE hInstance);
         LRESULT paint(HWND hwnd, HDC hdc);
 
@@ -87,14 +89,18 @@ namespace jaml
 
         ResolvedPos futurePos[2];
 
-    private:
-        Element(std::string_view const & source);
-        void create();
-
     protected:
+        void Build(ClassMap & classes);
+        void Layout();
+        std::vector<std::shared_ptr<JamlElement>> m_children = {};
+        std::string m_name;
+        JamlElement * m_parent = nullptr;
+        JamlClass * m_class = nullptr;
+
+        //
         ResolvedPos currentPos[2];
         HBRUSH backgroundBrush = NULL;
-        std::vector<std::shared_ptr<Element>> children = {};
+        std::vector<std::shared_ptr<Element>> m_children = {};
         std::vector<std::string> classes;
         bool created = false;
         std::string fontFace;
@@ -106,12 +112,10 @@ namespace jaml
         HWND hwndInner = 0;
         HWND hwndOuter = 0;
         size_t i = 0;
-        std::string id;
         HBITMAP image = 0;
         std::string label;
         uint8_t opacity = 255;
         Measure padding[4];
-        Element * parent = nullptr;
         Measure size[2] = { {0, NONE}, {0, NONE} };
         Tether tethers[4];
         Color textColor;

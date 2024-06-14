@@ -57,11 +57,11 @@ namespace mx
         showSetInventoryRecords = MxUtils::ReadIniStr(file, "Config", "ShowSetInventoryRecords", "0") == "1";
 
         v = MxUtils::ReadIniStr(file, "Config", "FilterBySets", "");
-        filterBySets = MxUtils::Explode(v);
+        filterBySets = MxUtils::explode(v);
 
 
         v = MxUtils::ReadIniStr(file, "Config", "FilterByParts", "");
-        filterByParts = MxUtils::Explode(v);
+        filterByParts = MxUtils::explode(v);
     }
 
     void Config::Save()
@@ -82,7 +82,7 @@ namespace mx
         MxUtils::WriteIniStr(file, "Config", "FindFlagged", findFlagged ? "1" : "0");
         MxUtils::WriteIniStr(file, "Config", "ShowSetInventoryRecords", showSetInventoryRecords ? "1" : "0");
 
-        MxUtils::WriteIniStr(file, "Config", "FilterBySets", MxUtils::Implode(filterBySets));
-        MxUtils::WriteIniStr(file, "Config", "FilterByParts", MxUtils::Implode(filterByParts));
+        MxUtils::WriteIniStr(file, "Config", "FilterBySets", MxUtils::implode(filterBySets));
+        MxUtils::WriteIniStr(file, "Config", "FilterByParts", MxUtils::implode(filterByParts));
     }
 }

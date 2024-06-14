@@ -1,10 +1,38 @@
+#include <algorithm>
 #include <regex>
 
 #include "JamlClass.h"
 #include "MxiLogging.h"
+#include "MxiUtils.h"
 
 namespace jaml
 {
+    void JamlClass::AddClasses(std::string_view const & classes)
+    {
+        auto more = mxi::explode(classes);
+        for (auto & m : more)
+        {
+            mxi::trim(m);
+            if (std::find(this->classes.begin(), this->classes.end(), m) != this->classes.end()) continue;
+            this->classes.push_back(std::string{ m });
+        }
+    }
+
+    JamlElement * const & JamlClass::GetElement() const noexcept
+    {
+        return element;
+    }
+
+    std::string const & JamlClass::GetName() const noexcept
+    {
+        return name;
+    }
+
+    std::string const & JamlClass::GetParentName() const noexcept
+    {
+        return parentName;
+    }
+
     void JamlClass::SetBackgroundColor(Color const & color)
     {
         backgroundColor = color;
@@ -30,19 +58,24 @@ namespace jaml
         alignContentV = edge;
     }
 
-    void JamlClass::SetElementType(JamlElementType const v)
+    void JamlClass::SetElement(JamlElement * element)
     {
-        elementType = v;
+        this->element = element;
     }
 
-    void JamlClass::SetElementType(std::string_view const & v)
+    void JamlClass::SetElementType(JamlElementType const type)
     {
-        if (v == "button") { elementType = BUTTON; return; }
-        if (v == "combobox") { elementType = COMBOBOX; return; }
-        if (v == "edit") { elementType = EDITBOX; return; }
-        if (v == "listbox") { elementType = LISTBOX; return; }
-        if (v == "checkbox") { elementType = CHECKBOX; return; }
-        if (v == "class") { elementType = CLASS; return; }
+        elementType = type;
+    }
+
+    void JamlClass::SetElementType(std::string_view const & type)
+    {
+        if (type == "button") { elementType = BUTTON; return; }
+        if (type == "combobox") { elementType = COMBOBOX; return; }
+        if (type == "edit") { elementType = EDITBOX; return; }
+        if (type == "listbox") { elementType = LISTBOX; return; }
+        if (type == "checkbox") { elementType = CHECKBOX; return; }
+        if (type == "class") { elementType = CLASS; return; }
         elementType = GENERIC;
     }
 
@@ -110,6 +143,12 @@ namespace jaml
     void JamlClass::SetPadding(Edge const edge, Measure const & v)
     {
         padding[edge] = v;
+    }
+
+    void JamlClass::SetParentName(std::string_view const & v)
+    {
+        parentName = v.empty() ? std::string{"window"} : std::string{v};
+        if (name.starts_with('.')) MX_THROW("Classes cannot have a parent");
     }
 
     void JamlClass::SetValue(std::string_view const & v)

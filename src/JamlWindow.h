@@ -18,7 +18,6 @@ namespace jaml
         JamlWindow(JamlWindow const &) = delete;
         void SetDefaults();
         bool throwOnUnresolved = true;
-        std::vector<std::shared_ptr<JamlClass>> definedClasses = {};
-
+        ClassMap definedClasses = {};
     };
 }

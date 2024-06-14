@@ -419,4 +419,27 @@ namespace jaml
 
         return lResult;
     }
+
+    void JamlElement::Build(ClassMap & classes)
+    {
+        for (auto & cp : classes)
+        {
+            auto c = cp.second.get();
+            if (c->GetElement()) continue;
+            if (c->GetName().starts_with('.')) continue;
+            if (c->GetParentName() != m_name) continue;
+            auto ep = std::make_shared<JamlElement>(JamlElement{ c->GetName() });
+            m_children.push_back(ep);
+            auto e = ep.get();
+            c->SetElement(e);
+            e->m_parent = this;
+            e->classes.push_back(std::string{ c->GetName() });
+            e->Build(classes);
+        }
+    }
+
+    void JamlElement::Layout()
+    {
+
+    }
 }

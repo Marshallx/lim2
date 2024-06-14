@@ -10,6 +10,8 @@
 
 namespace mxi
 {
+    std::filesystem::path GetModuleFilePath();
+
     // Convert UTF-16 std::wstring to UTF-8 std::string.
     std::string Utf8String(std::wstring const & utf16);
 
@@ -20,17 +22,15 @@ namespace mxi
 
     void WriteIniStr(std::filesystem::path const & path, std::string const & section, std::string const & key, std::string const & value);
 
-    // Split a string into a vector of strings.
-    std::vector<std::string> Explode(std::string_view const & s, std::string_view const & delim = ",");
-
-    // Join a vector of strings into a single string.
-    std::string Implode(std::vector<std::string> const & v, std::string_view const & delim = ",");
-
     std::string create_guid();
+
+    // Split a string into a vector of strings.
+    std::vector<std::string> explode(std::string_view const & s, std::string_view const & delim = ",");
 
     std::ostringstream formatError(std::string_view const & message, std::source_location const && source = {});
 
-    std::filesystem::path GetModuleFilePath();
+    // Join a vector of strings into a single string.
+    std::string implode(std::vector<std::string> const & v, std::string_view const & delim = ",");
 
     // Check if a character requires escaping for JSON.
     bool json_escape_needed(unsigned char const c);
@@ -43,4 +43,8 @@ namespace mxi
 
     // Unescape a JSON string. Must start and end with quotemarks. Ignores characters after closing quotemark, optionally returns number of characters parsed from source.
     std::string json_unescape_string(std::string_view const & s, size_t * cchParsed);
+
+    // Remove whitespace ( \t\r\n) from both ends of string. In place.
+    void trim(std::string & str);
+
 }

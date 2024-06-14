@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-#include "JamlElementInfo.h"
+#include "JamlClass.h"
 #include "JamlWindow.h"
 
 namespace jaml
@@ -18,12 +18,11 @@ namespace jaml
     class JamlParser
     {
     public:
-        JamlParser(std::string_view const & source, std::vector<std::shared_ptr<JamlClass>> & classes);
+        JamlParser(std::string_view const & source, ClassMap & classes);
 
     private:
         std::string_view source;
         SourceLoc loc;
-        std::vector<std::shared_ptr<JamlClass>> classes;
 
         void Error(std::string_view const & msg) const;
         void Expect(char const expected) const;
@@ -38,7 +37,7 @@ namespace jaml
         void EatComments();
         std::string_view ParseKey();
         std::string ParseValue();
-        void ParseSection();
+        void ParseSection(ClassMap & classes);
         void EatComment();
 
 

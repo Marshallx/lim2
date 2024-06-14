@@ -10,10 +10,10 @@ class=alice
 left=outer>left
 right=outer>right
 height=5em
-children=searchbox
 
 [searchbox]
-type=edit
+parent=querybar
+type=editbox
 width=10em
 top=4px
 left=4px;test
