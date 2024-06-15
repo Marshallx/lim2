@@ -53,6 +53,11 @@ namespace jaml
         return edge == TOP || edge == BOTTOM;
     }
 
+    bool isFarEdge(Edge const edge)
+    {
+        return edge == RIGHT || edge == BOTTOM;
+    }
+
     Edge operator ~(Edge const edge)
     {
         switch (edge)
@@ -129,6 +134,134 @@ namespace jaml
         }
 
         MX_THROW("Unsupported unit for conversion to pixels.");
+    }
+
+    int ResolvedRect::GetEdge(Edge const edge) const
+    {
+        if (m_edge[edge].has_value()) return m_edge[edge].value();
+        MX_THROW("Unresolved edge");
+    }
+
+    int ResolvedRect::GetSize(Dimension const dim) const
+    {
+        if (m_size[dim].has_value()) return m_size[dim].value();
+        MX_THROW("Unresolved dimension");
+    }
+
+    bool ResolvedRect::HasEdge(Edge const edge) const
+    {
+        return m_edge[edge].has_value();
+    }
+
+    bool ResolvedRect::HasSize(Dimension const dim) const
+    {
+        return m_size[dim].has_value();
+    }
+
+    void ResolvedRect::SetEdge(Edge const edge, int const px)
+    {
+        switch (edge)
+        {
+        case TOP: SetTop(px); return;
+        case LEFT: SetLeft(px); return;
+        case BOTTOM: SetBottom(px); return;
+        case RIGHT: SetRight(px); return;
+        }
+        MX_THROW("Invalid edge");
+    }
+
+    void ResolvedRect::SetSize(Dimension const dim, int const px)
+    {
+        switch (dim)
+        {
+        case WIDTH: SetWidth(px); return;
+        case HEIGHT: SetHeight(px); return;
+        }
+        MX_THROW("Invalid dimension");
+    }
+
+    void ResolvedRect::SetTop(int const px)
+    {
+        edge[TOP] = px;
+        if (size[HEIGHT].has_value() && !edge[BOTTOM].has_value())
+        {
+            edge[BOTTOM] = px + size[HEIGHT].value();
+        }
+        else if (edge[BOTTOM].has_value())
+        {
+            size[HEIGHT] = edge[BOTTOM].value() - px;
+        }
+    }
+
+    void ResolvedRect::SetBottom(int const px)
+    {
+        edge[BOTTOM] = px;
+        if (size[HEIGHT].has_value() && !edge[TOP].has_value())
+        {
+            edge[TOP] = px - size[HEIGHT].value();
+        }
+        else if (edge[TOP].has_value())
+        {
+            size[HEIGHT] = px - edge[TOP].value();
+        }
+    }
+
+    void ResolvedRect::SetHeight(int const px)
+    {
+        size[HEIGHT] = px;
+        if (edge[TOP].has_value())
+        {
+            edge[BOTTOM] = edge[TOP].value() + px;
+        }
+        else if (edge[BOTTOM].has_value())
+        {
+            edge[TOP] = edge[BOTTOM].value() - px;
+        }
+    }
+
+    void ResolvedRect::SetLeft(int const px)
+    {
+        edge[LEFT] = px;
+        if (size[WIDTH].has_value() && !edge[RIGHT].has_value())
+        {
+            edge[RIGHT] = px + size[WIDTH].value();
+        }
+        else if (edge[RIGHT].has_value())
+        {
+            size[WIDTH] = edge[RIGHT].value() - px;
+        }
+    }
+
+    void ResolvedRect::SetRight(int const px)
+    {
+        edge[RIGHT] = px;
+        if (size[WIDTH].has_value() && !edge[LEFT].has_value())
+        {
+            edge[LEFT] = px - size[WIDTH].value();
+        }
+        else if (edge[LEFT].has_value())
+        {
+            size[WIDTH] = px - edge[LEFT].value();
+        }
+    }
+
+    void ResolvedRect::SetWidth(int const px)
+    {
+        size[WIDTH] = px;
+        if (edge[LEFT].has_value())
+        {
+            edge[RIGHT] = edge[LEFT].value() + px;
+        }
+        else if (edge[RIGHT].has_value())
+        {
+            edge[LEFT] = edge[RIGHT].value() - px;
+        }
+    }
+
+    size_t ResolvedRect::CountUnresolved() const
+    {
+        return !edge[TOP].has_value() + !edge[LEFT].has_value() + !edge[BOTTOM].has_value() + !edge[RIGHT].has_value()
+            + !size[WIDTH].has_value() + !size[HEIGHT].has_value();
     }
 
 }

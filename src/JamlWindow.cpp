@@ -53,6 +53,15 @@ namespace jaml
         JamlParser parser({ jamlSource }, definedClasses);
     }
 
+    JamlClass const * JamlWindow::GetClass(std::string const & name) const
+    {
+        for (auto const cp : definedClasses)
+        {
+            if (cp.first == name) return cp.second.get();
+        }
+        return nullptr;
+    }
+
     void JamlWindow::IgnoreErrors(bool const ignore)
     {
         throwOnUnresolved = !ignore;
@@ -76,6 +85,18 @@ namespace jaml
             }
             MX_THROW("Element \"{}\" parent \"{}\" not found.");
         }
-        Layout();
+
+        PrepareToComputeLayout();
+        size_t previousUnresolvedCount = 0;
+        for(;;)
+        {
+            size_t currentUnresolvedCount = ComputeLayout();
+            if (currentUnresolvedCount == 0) break;
+            if (previousUnresolvedCount == currentUnresolvedCount)
+            {
+                MX_THROW("Failed to recalculate layout - cyclic dependency?");
+            }
+        }
+        CommitLayout();
     }
 }

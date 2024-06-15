@@ -7,15 +7,21 @@
 
 namespace jaml
 {
-    void JamlClass::AddClasses(std::string_view const & classes)
+    void JamlClass::AddClassNames(std::string_view const & classes)
     {
         auto more = mxi::explode(classes);
-        for (auto & m : more)
+        // Add classes in reverse order (priority order in source is RTL)
+        for (auto i = more.size() - 1; i>=0; --i)
         {
-            mxi::trim(m);
-            if (std::find(this->classes.begin(), this->classes.end(), m) != this->classes.end()) continue;
-            this->classes.push_back(std::string{ m });
+            mxi::trim(more[i]);
+            if (std::find(this->classes.begin(), this->classes.end(), more[i]) != this->classes.end()) continue;
+            this->classes.push_back(std::string{ more[i]} );
         }
+    }
+
+    std::vector<std::string> const & JamlClass::GetClassNames() const
+    {
+        return classes;
     }
 
     JamlElement * const & JamlClass::GetElement() const noexcept
@@ -31,6 +37,12 @@ namespace jaml
     std::string const & JamlClass::GetParentName() const noexcept
     {
         return parentName;
+    }
+
+    std::optional<Tether> const & JamlClass::GetTether(Edge const edge) const
+    {
+        if (edge > 4) MX_THROW("Invalid tether edge");
+        return tethers[edge];
     }
 
     void JamlClass::SetBackgroundColor(Color const & color)
@@ -151,26 +163,9 @@ namespace jaml
         if (name.starts_with('.')) MX_THROW("Classes cannot have a parent");
     }
 
-    void JamlClass::SetValue(std::string_view const & v)
-    {
-        value = v;
-    }
-
-    void JamlClass::SetVisible(bool const v)
-    {
-        visible = v;
-    }
-    void JamlClass::hide() { SetVisible(false); }
-    void JamlClass::show() { SetVisible(true); }
-
-    void JamlClass::SetWidth(std::string_view const & width)
-    {
-        if (width == "auto") size[WIDTH].reset();
-        else size[WIDTH] = Measure::Parse(width);
-    }
-
     void JamlClass::SetTether(Edge const mySide, std::string_view const & otherId, Edge const otherSide, Measure const & offset)
     {
+        if (name == "window") return; // window has no parent or siblings so cannot be tethered
         tethers[mySide] = { otherId, otherSide, offset };
         // TODO Validate that no tether has cyclic dependencies
     }
@@ -201,8 +196,7 @@ namespace jaml
             if (unitStr == "em") unit = EM;
             else if (unitStr == "%") { unit = PC; offset /= 100; }
 
-            tethers[mySide] = { matches[1].str(), otherSide, { offset, unit } };
-            // TODO Validate that no tether has cyclic dependencies
+            SetTether(mySide, matches[1].str(), otherSide, { offset, unit });
         }
         else if ( std::regex_search(spec, matches, simpleRegex))
         {
@@ -212,8 +206,26 @@ namespace jaml
             auto unit = Unit::PX;
             if (unitStr == "em") unit = EM;
             else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
-            tethers[mySide] = { {}, mySide, {offset, unit} };
+            SetTether(mySide, {}, mySide, {offset, unit});
         }
         else MX_THROW(std::format("Invalid tether: bad format. Expected [id>side][±offset em|px], saw {}", spec).c_str());
+    }
+
+    void JamlClass::SetValue(std::string_view const & v)
+    {
+        value = v;
+    }
+
+    void JamlClass::SetVisible(bool const v)
+    {
+        visible = v;
+    }
+    void JamlClass::hide() { SetVisible(false); }
+    void JamlClass::show() { SetVisible(true); }
+
+    void JamlClass::SetWidth(std::string_view const & width)
+    {
+        if (width == "auto") size[WIDTH].reset();
+        else size[WIDTH] = Measure::Parse(width);
     }
 }

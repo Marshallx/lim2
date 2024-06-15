@@ -11,6 +11,7 @@ namespace jaml
         JamlWindow();
         JamlWindow(std::filesystem::path const & file);
         JamlWindow(std::string_view const & source);
+        JamlClass const * GetClass(std::string const & name) const;
         int Start(HINSTANCE hInstance, int const nCmdShow);
         void IgnoreErrors(bool const ignore = true);
 

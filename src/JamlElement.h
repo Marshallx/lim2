@@ -3,6 +3,7 @@
 #include <Windows.h>
 
 #include "JamlClass.h"
+#include "JamlWindow.h"
 #include "MxiLogging.h"
 
 namespace jaml
@@ -75,8 +76,6 @@ namespace jaml
         void show();
         void hide();
 
-        Resolved recalculatePos(Side const side, Edge const edge, bool * canMakeStuffUp = nullptr);
-        Resolved recalculateDimension(Side const side, Dimension const dim);
 
         // Resolves as many coordinates as possible (single pass) and returns the number of unresolved coordinates/dimensions.
         size_t recalculateLayout(bool * canMakeStuffUp = nullptr);
@@ -91,17 +90,22 @@ namespace jaml
 
     protected:
         void Build(ClassMap & classes);
-        void Layout();
+        void PrepareToComputeLayout();
+        size_t ComputeLayout(bool * canMakeStuffUp = nullptr);
+        Resolved ComputeEdge(Edge const edge, bool * canMakeStuffUp = nullptr);
+        Resolved ComputeDimension(Dimension const dim);
+        void CommitLayout();
+        JamlWindow const * GetWindow() const;
+        std::optional<Tether> const & GetTether(Edge const edge) const;
         std::vector<std::shared_ptr<JamlElement>> m_children = {};
         std::string m_name;
         JamlElement * m_parent = nullptr;
         JamlClass * m_class = nullptr;
+        std::vector<std::shared_ptr<JamlElement>> m_children = {};
+        ResolvedRect m_currentRect;
+        ResolvedRect m_futureRect;
 
-        //
-        ResolvedPos currentPos[2];
         HBRUSH backgroundBrush = NULL;
-        std::vector<std::shared_ptr<Element>> m_children = {};
-        std::vector<std::string> classes;
         bool created = false;
         std::string fontFace;
         FontStyle fontStyle = FontStyle::INHERIT;

@@ -180,7 +180,7 @@ namespace jaml
                 if (key == "parent") c->SetParentName(value);
                 else if (key == "background-color") c->SetBackgroundColor(value);
                 else if (key == "bottom") c->SetTether(BOTTOM, value);
-                else if (key == "class") c->AddClasses(value);
+                else if (key == "class") c->AddClassNames(value);
                 else if (key == "color") c->SetFontColor(value);
                 else if (key == "fontface") c->SetFontFace(value);
                 else if (key == "fontsize") c->SetFontSize(value);

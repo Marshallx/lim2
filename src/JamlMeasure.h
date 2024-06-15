@@ -21,8 +21,7 @@ namespace jaml
         LEFT = 1,
         BOTTOM = 2,
         RIGHT = 3,
-        CENTER = 4, // only for text align
-        AUTO = (std::numeric_limits<uint8_t>::max)()
+        CENTER = 4 // only for text align
     };
     Edge operator ~(Edge const edge);
 
@@ -41,7 +40,12 @@ namespace jaml
 
     enum Unit
     {
-        PX, EM, PT, PC, NONE = (std::numeric_limits<uint8_t>::max)()
+        PX, EM, PT, PC
+    };
+
+    enum Resolved
+    {
+        RESOLVED = 0, UNRESOLVED = 1
     };
 
     class Measure
@@ -58,18 +62,39 @@ namespace jaml
         std::optional<int> toPixels(JamlElement const * context, Dimension const dim, Side const side = OUTER) const;
     };
 
-
     class Tether
     {
     public:
-        Tether() : edge(Edge::AUTO) {};
+        Tether() {};
         Tether(std::string_view const & id, Edge const edge, Measure const & offset) : id(id), edge(edge), offset(offset) {};
         std::string id;
         Edge edge;
         Measure offset;
     };
 
+    class ResolvedRect
+    {
+    public:
+        int GetEdge(Edge const edge) const;
+        int GetSize(Dimension const dim) const;
+        bool HasEdge(Edge const edge) const;
+        bool HasSize(Dimension const dim) const;
+        void SetEdge(Edge const edge, int px);
+        void SetSize(Dimension const dim, int px);
+        size_t CountUnresolved() const;
+    private:
+        std::optional<int> m_edge[4];
+        std::optional<int> m_size[2];
+        void SetTop(int px);
+        void SetLeft(int px);
+        void SetBottom(int px);
+        void SetRight(int px);
+        void SetWidth(int px);
+        void SetHeight(int px);
+    };
+
     int getDpi(HWND hwnd);
     bool isHEdge(Edge const side);
     bool isVEdge(Edge const side);
+    bool isFarEdge(Edge const edge);
 }

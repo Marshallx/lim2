@@ -28,10 +28,12 @@ namespace jaml
         JamlClass(std::string_view const & name) : name(name)
             { if (name.empty()) MX_THROW("All classes and elements require a unique name"); };
 
-        void AddClasses(std::string_view const & classes);
+        void AddClassNames(std::string_view const & classes);
+        std::vector<std::string> const & GetClassNames() const;
         JamlElement * const & GetElement() const noexcept;
         std::string const & GetName() const noexcept;
         std::string const & GetParentName() const noexcept;
+        std::optional<Tether> const & GetTether(Edge const edge) const;
 
         void SetBackgroundColor(Color const & color);
         void SetBackgroundColor(std::string_view const & color);

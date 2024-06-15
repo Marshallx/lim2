@@ -434,12 +434,118 @@ namespace jaml
             c->SetElement(e);
             e->m_parent = this;
             e->classes.push_back(std::string{ c->GetName() });
+            e->classes.insert(e->classes.end(), c->GetClassNames().begin(), c->GetClassNames().end());
             e->Build(classes);
         }
     }
 
-    void JamlElement::Layout()
+    JamlWindow const * JamlElement::GetWindow() const
     {
+        auto window = this;
+        while (window->m_parent) { window = window->m_parent; }
+        return (JamlWindow*)window;
+    }
 
+    std::optional<Tether> const & JamlElement::GetTether(Edge const edge) const
+    {
+        auto const window = GetWindow();
+        for (auto const cname : classes)
+        {
+            auto const c = window->GetClass(cname);
+            auto const tether = c->GetTether(edge);
+            if (!tether.has_value()) continue;
+            return tether;
+        }
+    }
+
+    void JamlElement::PrepareToComputeLayout()
+    {
+        m_futureRect = {};
+        for (auto child : m_children)
+        {
+            child.get()->PrepareToComputeLayout();
+        }
+    }
+
+    size_t JamlElement::ComputeLayout(bool * canMakeStuffUp)
+    {
+        size_t unresolved = 0;
+        unresolved += ComputeEdge(TOP, canMakeStuffUp);
+        unresolved += ComputeEdge(LEFT, canMakeStuffUp);
+        unresolved += ComputeEdge(BOTTOM, canMakeStuffUp);
+        unresolved += ComputeEdge(RIGHT, canMakeStuffUp);
+        unresolved += ComputeSize(WIDTH, canMakeStuffUp);
+        unresolved += ComputeSize(HEIGHT, canMakeStuffUp);
+        for (auto child : m_children)
+        {
+            child.get()->ComputeLayout(canMakeStuffUp);
+        }
+        return unresolved;
+    }
+
+    Resolved JamlElement::ComputeEdge(Edge const edge, bool * canMakeStuffUp)
+    {
+        if (m_futureRect.HasEdge(edge)) return RESOLVED;
+
+        auto const tether = GetTether(edge);
+        if (tether.has_value())
+        {
+            auto const offset = tether.value().offset.toPixels(this, edgeToDimension(edge));
+            if (!offset.has_value()) return UNRESOLVED;
+            if (tether.value().id.empty())
+            {
+                // Tether to parent
+                int anchor = 0;
+                if (isFarEdge(tether.value().edge))
+                {
+                    if (m_parent->ComputeEdge(edge, canMakeStuffUp) == RESOLVED)
+                    {
+                        anchor = m_parent->m_futureRect.GetEdge(tether.value().edge);
+                    }
+                    else
+                    {
+                        return UNRESOLVED;
+                    }
+                }
+                m_futureRect.SetEdge(edge, anchor + offset.value());
+                return RESOLVED;
+            }
+
+            // Tether to sibling
+            // TODO
+        }
+
+        // Auto, use margin from sibling
+        // TODO
+
+        auto tether = tethers[edge];
+        // Tether to other element, or, if no tether specified, to sibling (top/left only)
+        if (tether.edge != AUTO || edge == TOP || edge == LEFT)
+        {
+            Element * other = tether.id.empty()
+                ? (i ? parent->getChild(i - 1) : nullptr)
+                : getRoot()->findElement(tether.id);
+
+            if (tether.edge == AUTO)
+            {
+                if (edge == LEFT) tether.edge = RIGHT; // adjacent to previous sibling
+                else tether.edge = TOP; // same top as previous sibling
+            }
+
+            futurePos[side].coord[edge] = other ? other->futurePos[side].coord[tether.edge] : 0;
+
+            if (futurePos[side].coord[edge].has_value())
+            {
+                return applyOffset(side, edge, tether.offset, canMakeStuffUp);
+            }
+        }
+        if (canMakeStuffUp && *canMakeStuffUp && (edge == TOP || edge == LEFT))
+        {
+            jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, edgeToString(edge)).c_str());
+            futurePos[side].coord[edge] = 0;
+            *canMakeStuffUp = false;
+            return RESOLVED;
+        }
+        return UNRESOLVED;
     }
 }
