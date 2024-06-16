@@ -50,33 +50,29 @@ namespace jaml
         fread(jamlSource.data(), sizeof(char), size, f);
 
         SetDefaults();
-        JamlParser parser({ jamlSource }, definedClasses);
+        JamlParser parser({ jamlSource }, m_definedClasses);
     }
 
-    JamlClass const * JamlWindow::GetClass(std::string const & name) const
+    JamlClassMap const & JamlWindow::GetClassMap() const
     {
-        for (auto const cp : definedClasses)
-        {
-            if (cp.first == name) return cp.second.get();
-        }
-        return nullptr;
+        return m_definedClasses;
     }
 
     void JamlWindow::IgnoreErrors(bool const ignore)
     {
-        throwOnUnresolved = !ignore;
+        m_throwOnUnresolved = !ignore;
     }
 
     int JamlWindow::Start(HINSTANCE hInstance, int const nCmdShow)
     {
-        Build(definedClasses);
+        Build(m_definedClasses);
         // Check that all elements were built
-        for (auto & cp : definedClasses)
+        for (auto & cp : m_definedClasses)
         {
             auto c = cp.second.get();
             if (c->GetElement()) continue;
             if (cp.first.starts_with('.')) continue;
-            for (auto & cp2 : definedClasses)
+            for (auto & cp2 : m_definedClasses)
             {
                 if (cp2.first == c->GetParentName())
                 {

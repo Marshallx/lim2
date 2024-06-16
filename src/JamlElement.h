@@ -76,32 +76,29 @@ namespace jaml
         void show();
         void hide();
 
-
-        // Resolves as many coordinates as possible (single pass) and returns the number of unresolved coordinates/dimensions.
-        size_t recalculateLayout(bool * canMakeStuffUp = nullptr);
-
         // Applies a tether offset to an otherwise resolved coordinate. Returns 1 if offset is unresolved (and resets the coord), 0 otherwise.
-        Resolved applyOffset(Side const side, Edge const edge, Measure const & offset, bool * canMakeStuffUp = nullptr);
-
-        // Move futurePos to currentPos and redraw everything
-        void commitLayout();
-
-        ResolvedPos futurePos[2];
+        Resolved applyOffset(Side const side, Edge const edge, Measure const & offset);
 
     protected:
-        void Build(ClassMap & classes);
+        void Build();
         void PrepareToComputeLayout();
-        size_t ComputeLayout(bool * canMakeStuffUp = nullptr);
-        Resolved ComputeEdge(Edge const edge, bool * canMakeStuffUp = nullptr);
+
+        // Resolves as many coordinates as possible (single pass) and returns the number of unresolved coordinates/dimensions.
+        size_t ComputeLayout();
+
+        Resolved ComputeEdge(Edge const edge);
         Resolved ComputeDimension(Dimension const dim);
+
+        // Move futureRect to currentRect and redraw everything
         void CommitLayout();
+
+        JamlElement * GetSibling(std::string_view const & name) const;
+        Tether const * GetTether(Edge const edge) const;
         JamlWindow const * GetWindow() const;
-        std::optional<Tether> const & GetTether(Edge const edge) const;
         std::vector<std::shared_ptr<JamlElement>> m_children = {};
         std::string m_name;
         JamlElement * m_parent = nullptr;
         JamlClass * m_class = nullptr;
-        std::vector<std::shared_ptr<JamlElement>> m_children = {};
         ResolvedRect m_currentRect;
         ResolvedRect m_futureRect;
 

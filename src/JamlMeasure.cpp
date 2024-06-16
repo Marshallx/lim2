@@ -29,7 +29,6 @@ namespace jaml
         case BOTTOM: return "bottom";
         case RIGHT: return "right";
         case CENTER: return "center";
-        case AUTO: return "auto";
         }
         MX_THROW("Unknown edge.");
     }

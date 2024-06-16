@@ -420,9 +420,10 @@ namespace jaml
         return lResult;
     }
 
-    void JamlElement::Build(ClassMap & classes)
+    void JamlElement::Build()
     {
-        for (auto & cp : classes)
+        auto window = GetWindow();
+        for (auto & cp : window->GetClassMap().m_map)
         {
             auto c = cp.second.get();
             if (c->GetElement()) continue;
@@ -433,10 +434,17 @@ namespace jaml
             auto e = ep.get();
             c->SetElement(e);
             e->m_parent = this;
-            e->classes.push_back(std::string{ c->GetName() });
-            e->classes.insert(e->classes.end(), c->GetClassNames().begin(), c->GetClassNames().end());
-            e->Build(classes);
+            e->Build();
         }
+    }
+
+    JamlElement * JamlElement::GetSibling(std::string_view const & name) const
+    {
+        for (auto const & sibling : m_parent->m_children)
+        {
+            if (sibling.get()->m_name == name) return sibling.get();
+        }
+        return nullptr;
     }
 
     JamlWindow const * JamlElement::GetWindow() const
@@ -446,16 +454,9 @@ namespace jaml
         return (JamlWindow*)window;
     }
 
-    std::optional<Tether> const & JamlElement::GetTether(Edge const edge) const
+    Tether const * JamlElement::GetTether(Edge const edge) const
     {
-        auto const window = GetWindow();
-        for (auto const cname : classes)
-        {
-            auto const c = window->GetClass(cname);
-            auto const tether = c->GetTether(edge);
-            if (!tether.has_value()) continue;
-            return tether;
-        }
+        return GetWindow()->GetClassMap().GetTether(edge, m_name);
     }
 
     void JamlElement::PrepareToComputeLayout()
@@ -467,40 +468,40 @@ namespace jaml
         }
     }
 
-    size_t JamlElement::ComputeLayout(bool * canMakeStuffUp)
+    size_t JamlElement::ComputeLayout()
     {
         size_t unresolved = 0;
-        unresolved += ComputeEdge(TOP, canMakeStuffUp);
-        unresolved += ComputeEdge(LEFT, canMakeStuffUp);
-        unresolved += ComputeEdge(BOTTOM, canMakeStuffUp);
-        unresolved += ComputeEdge(RIGHT, canMakeStuffUp);
-        unresolved += ComputeSize(WIDTH, canMakeStuffUp);
-        unresolved += ComputeSize(HEIGHT, canMakeStuffUp);
+        unresolved += ComputeEdge(TOP);
+        unresolved += ComputeEdge(LEFT);
+        unresolved += ComputeEdge(BOTTOM);
+        unresolved += ComputeEdge(RIGHT);
+        unresolved += ComputeSize(WIDTH);
+        unresolved += ComputeSize(HEIGHT);
         for (auto child : m_children)
         {
-            child.get()->ComputeLayout(canMakeStuffUp);
+            child.get()->ComputeLayout();
         }
         return unresolved;
     }
 
-    Resolved JamlElement::ComputeEdge(Edge const edge, bool * canMakeStuffUp)
+    Resolved JamlElement::ComputeEdge(Edge const edge)
     {
         if (m_futureRect.HasEdge(edge)) return RESOLVED;
 
         auto const tether = GetTether(edge);
-        if (tether.has_value())
+        if (tether)
         {
-            auto const offset = tether.value().offset.toPixels(this, edgeToDimension(edge));
+            auto const offset = tether->offset.toPixels(this, edgeToDimension(edge));
             if (!offset.has_value()) return UNRESOLVED;
-            if (tether.value().id.empty())
+            if (tether->id.empty())
             {
                 // Tether to parent
                 int anchor = 0;
-                if (isFarEdge(tether.value().edge))
+                if (isFarEdge(tether->edge))
                 {
-                    if (m_parent->ComputeEdge(edge, canMakeStuffUp) == RESOLVED)
+                    if (m_parent->ComputeEdge(tether->edge) == RESOLVED)
                     {
-                        anchor = m_parent->m_futureRect.GetEdge(tether.value().edge);
+                        anchor = m_parent->m_futureRect.GetEdge(tether->edge);
                     }
                     else
                     {
@@ -512,40 +513,21 @@ namespace jaml
             }
 
             // Tether to sibling
-            // TODO
+            auto sibling = GetSibling(tether->id);
+            if (!sibling) return UNRESOLVED;
+            if (sibling->ComputeEdge(tether->edge) == UNRESOLVED) return UNRESOLVED;
+            m_futureRect.SetEdge(edge, sibling->m_futureRect.GetEdge(tether->edge) + offset.value());
+            return RESOLVED;
         }
 
         // Auto, use margin from sibling
         // TODO
+        // margin-left => how far right of prev sib (min)
+        // margin-right => how far right next sib must be (min, iff not tethered)
+        // margin-top => how far below prev sib (min)
+        // margin-bottom => how far below next sib must be (min, iff not tethered)
+        // if margin-left & margin-top specified then it is below prev element and indented from left of parent
 
-        auto tether = tethers[edge];
-        // Tether to other element, or, if no tether specified, to sibling (top/left only)
-        if (tether.edge != AUTO || edge == TOP || edge == LEFT)
-        {
-            Element * other = tether.id.empty()
-                ? (i ? parent->getChild(i - 1) : nullptr)
-                : getRoot()->findElement(tether.id);
-
-            if (tether.edge == AUTO)
-            {
-                if (edge == LEFT) tether.edge = RIGHT; // adjacent to previous sibling
-                else tether.edge = TOP; // same top as previous sibling
-            }
-
-            futurePos[side].coord[edge] = other ? other->futurePos[side].coord[tether.edge] : 0;
-
-            if (futurePos[side].coord[edge].has_value())
-            {
-                return applyOffset(side, edge, tether.offset, canMakeStuffUp);
-            }
-        }
-        if (canMakeStuffUp && *canMakeStuffUp && (edge == TOP || edge == LEFT))
-        {
-            jaml_log(SEV_WARN, std::format("Element \"{}\" {} coordinate unresolved. Forcing to 0.", id, edgeToString(edge)).c_str());
-            futurePos[side].coord[edge] = 0;
-            *canMakeStuffUp = false;
-            return RESOLVED;
-        }
         return UNRESOLVED;
     }
 }

@@ -30,10 +30,10 @@ namespace jaml
 
         void AddClassNames(std::string_view const & classes);
         std::vector<std::string> const & GetClassNames() const;
-        JamlElement * const & GetElement() const noexcept;
+        JamlElement const * GetElement() const noexcept;
         std::string const & GetName() const noexcept;
         std::string const & GetParentName() const noexcept;
-        std::optional<Tether> const & GetTether(Edge const edge) const;
+        Tether const * GetTether(Edge const edge) const;
 
         void SetBackgroundColor(Color const & color);
         void SetBackgroundColor(std::string_view const & color);
@@ -68,27 +68,34 @@ namespace jaml
     protected:
         JamlClass() = delete;
 
-        std::optional<Edge> alignContentH;
-        std::optional<Edge> alignContentV;
-        std::optional<Color> backgroundColor;
-        std::optional<Color> borderColor;
-        std::optional<Measure> borderSize;
-        std::optional<Measure> borderRadius;
-        std::vector<std::string> classes = {};
-        JamlElement * element = nullptr;
-        JamlElementType elementType = GENERIC;
-        std::optional<Font> font;
-        std::filesystem::path imagePath;
-        std::string label;
-        std::string name;
-        std::optional<uint8_t> opacity = 255;
-        std::optional<Measure> padding[4];
-        std::string parentName;
-        std::optional<Measure> size[2];
-        std::optional<Tether> tethers[4];
-        std::string value;
-        bool visible = true;
+        std::optional<Edge> m_alignContentH;
+        std::optional<Edge> m_alignContentV;
+        std::optional<Color> m_backgroundColor;
+        std::optional<Color> m_borderColor;
+        std::optional<Measure> m_borderSize;
+        std::optional<Measure> m_borderRadius;
+        std::vector<std::string> m_classNames = {};
+        JamlElement * m_element = nullptr;
+        JamlElementType m_elementType = GENERIC;
+        std::optional<Font> m_font;
+        std::filesystem::path m_imagePath;
+        std::string m_label;
+        std::string m_name;
+        std::optional<uint8_t> m_opacity = 255;
+        std::optional<Measure> m_padding[4];
+        std::string m_parentName;
+        std::optional<Measure> m_size[2];
+        std::optional<Tether> m_tethers[4];
+        std::string m_value;
+        bool m_visible = true;
     };
 
-    using ClassMap = std::unordered_map<std::string, std::shared_ptr<JamlClass>>;
+    class JamlClassMap
+    {
+    public:
+        JamlClass * GetClass(std::string_view const & name) const;
+        void GetClassChain(std::string_view const & name, std::vector<JamlClass *> & chain) const;
+        Tether const * GetTether(Edge const edge, std::string_view const & name) const;
+        std::unordered_map<std::string, std::shared_ptr<JamlClass>> m_map = {};
+    }
 }
