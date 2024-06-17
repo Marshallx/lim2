@@ -2,15 +2,15 @@
 #include <fstream>
 #include <iostream>
 
-#include "JamlParser.h"
+#include "AnusParser.h"
 
-#include "JamlWindow.h"
+#include "AnusWindow.h"
 
-namespace jaml
+namespace Anus
 {
-    void JamlWindow::SetDefaults()
+    void AnusWindow::SetDefaults()
     {
-        auto cp = std::make_shared<JamlClass>("window");
+        auto cp = std::make_shared<AnusClass>("window");
         auto c = cp.get();
         definedClasses[c->name] = cp;
         c->font = {};
@@ -24,18 +24,18 @@ namespace jaml
         c->SetBackgroundColor(0xFFFFFF);
     }
 
-    JamlWindow::JamlWindow()
+    AnusWindow::AnusWindow()
     {
         SetDefaults();
     }
 
-    JamlWindow::JamlWindow(std::string_view const & jamlSource)
+    AnusWindow::AnusWindow(std::string_view const & AnusSource)
     {
         SetDefaults();
-        JamlParser parser(jamlSource, definedClasses);
+        AnusParser parser(AnusSource, definedClasses);
     }
 
-    JamlWindow::JamlWindow(std::filesystem::path const & file)
+    AnusWindow::AnusWindow(std::filesystem::path const & file)
     {
         FILE * f = fopen(file.string().c_str(), "r");
 
@@ -43,27 +43,27 @@ namespace jaml
         fseek(f, 0, SEEK_END);
         size_t size = ftell(f);
 
-        auto jamlSource = std::string{};
-        jamlSource.resize(size);
+        auto AnusSource = std::string{};
+        AnusSource.resize(size);
 
         rewind(f);
-        fread(jamlSource.data(), sizeof(char), size, f);
+        fread(AnusSource.data(), sizeof(char), size, f);
 
         SetDefaults();
-        JamlParser parser({ jamlSource }, m_definedClasses);
+        AnusParser parser({ AnusSource }, m_definedClasses);
     }
 
-    JamlClassMap const & JamlWindow::GetClassMap() const
+    AnusClassMap const & AnusWindow::GetClassMap() const
     {
         return m_definedClasses;
     }
 
-    void JamlWindow::IgnoreErrors(bool const ignore)
+    void AnusWindow::IgnoreErrors(bool const ignore)
     {
         m_throwOnUnresolved = !ignore;
     }
 
-    int JamlWindow::Start(HINSTANCE hInstance, int const nCmdShow)
+    int AnusWindow::Start(HINSTANCE hInstance, int const nCmdShow)
     {
         Build(m_definedClasses);
         // Check that all elements were built

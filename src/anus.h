@@ -8,7 +8,7 @@
 
 #include <Windows.h>
 
-namespace jaml
+namespace Anus
 {
 
     enum Resolved

@@ -3,10 +3,10 @@
 #include <optional>
 #include <string>
 
-#include "JamlColor.h"
-#include "JamlMeasure.h"
+#include "AnusColor.h"
+#include "AnusMeasure.h"
 
-namespace jaml
+namespace Anus
 {
     enum FontWeight : int
     {

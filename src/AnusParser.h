@@ -2,10 +2,10 @@
 
 #include <string_view>
 
-#include "JamlClass.h"
-#include "JamlWindow.h"
+#include "AnusClass.h"
+#include "AnusWindow.h"
 
-namespace jaml
+namespace Anus
 {
     class SourceLoc
     {
@@ -15,10 +15,10 @@ namespace jaml
         size_t col = 1;
     };
 
-    class JamlParser
+    class AnusParser
     {
     public:
-        JamlParser(std::string_view const & source, ClassMap & classes);
+        AnusParser(std::string_view const & source, AnusClassMap & classes);
 
     private:
         std::string_view source;
@@ -37,8 +37,7 @@ namespace jaml
         void EatComments();
         std::string_view ParseKey();
         std::string ParseValue();
-        void ParseSection(ClassMap & classes);
-        void EatComment();
+        void ParseSection(AnusClassMap & classes);
 
 
     };

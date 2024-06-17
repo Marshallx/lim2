@@ -1,9 +1,9 @@
-#include "JamlClass.h"
+#include "AnusClass.h"
 #include "MxiLogging.h"
 
-#include "JamlParser.h"
+#include "AnusParser.h"
 
-namespace jaml
+namespace Anus
 {
     namespace
     {
@@ -21,58 +21,58 @@ namespace jaml
         }
     }
 
-    void JamlParser::Error(std::string_view const & msg) const
+    void AnusParser::Error(std::string_view const & msg) const
     {
-        MX_THROW(std::format("JAML parse error at {},{}: {}", loc.line, loc.col, msg));
+        MX_THROW(std::format("Anus parse error at {},{}: {}", loc.line, loc.col, msg));
     }
 
-    void JamlParser::Expect(char const expected) const
+    void AnusParser::Expect(char const expected) const
     {
         EoiCheck(expected);
         if (source[loc.pos] == expected) return;
         Expected(expected);
     }
 
-    void JamlParser::Expected(std::string_view const & expected) const
+    void AnusParser::Expected(std::string_view const & expected) const
     {
         Error(std::format("Expected {}", expected));
     }
 
-    void JamlParser::Expected(char const expected) const
+    void AnusParser::Expected(char const expected) const
     {
         Error(std::format("Expected '{}'", expected));
     }
 
-    void JamlParser::EoiCheck(std::string_view const & expected) const
+    void AnusParser::EoiCheck(std::string_view const & expected) const
     {
         if (loc.pos < source.size()) return;
         Error(std::format("Unexpected end of input. Expected {}", expected));
     }
 
-    void JamlParser::EoiCheck(char const expected) const
+    void AnusParser::EoiCheck(char const expected) const
     {
         if (loc.pos < source.size()) return;
         Error(std::format("Unexpected end of input. Expected '{}'", expected));
     }
 
-    void JamlParser::NextChar()
+    void AnusParser::NextChar()
     {
         ++loc.pos;
         ++loc.col;
     }
 
-    char JamlParser::Peek() const
+    char AnusParser::Peek() const
     {
         if (loc.pos >= source.size()) return 0;
         return source[loc.pos];
     }
 
-    bool JamlParser::IsWhitespace() const
+    bool AnusParser::IsWhitespace() const
     {
         return isWhitespace(source[loc.pos]);
     }
 
-    void JamlParser::EatWhitespace(bool const eatLF)
+    void AnusParser::EatWhitespace(bool const eatLF)
     {
         while (loc.pos < source.size())
         {
@@ -94,7 +94,7 @@ namespace jaml
         }
     }
 
-    void JamlParser::EatComments()
+    void AnusParser::EatComments()
     {
         while (loc.pos < source.size())
         {
@@ -120,7 +120,7 @@ namespace jaml
         }
     }
 
-    JamlParser::JamlParser(std::string_view const & source, ClassMap & classes) : source(source)
+    AnusParser::AnusParser(std::string_view const & source, AnusClassMap & classes) : source(source)
     {
         while (loc.pos < source.size())
         {
@@ -130,7 +130,7 @@ namespace jaml
         }
     };
 
-    void JamlParser::ParseSection(ClassMap & classes)
+    void AnusParser::ParseSection(AnusClassMap & classes)
     {
         Expect('[');
         NextChar();
@@ -159,7 +159,7 @@ namespace jaml
             }
             if (source[loc.pos] == ';') Expected(']');
         }
-        auto cp = std::make_shared<JamlClass>(JamlClass{name});
+        auto cp = std::make_shared<AnusClass>(AnusClass{name});
         classes[name] = cp;
         auto c = cp.get();
         for (;; NextChar())
@@ -178,18 +178,20 @@ namespace jaml
             try
             {
                 if (key == "parent") c->SetParentName(value);
-                else if (key == "background-color") c->SetBackgroundColor(value);
+                else if (key == "background-color" || key == "bgcolor") c->SetBackgroundColor(value);
                 else if (key == "bottom") c->SetTether(BOTTOM, value);
-                else if (key == "class") c->AddClassNames(value);
-                else if (key == "color") c->SetFontColor(value);
-                else if (key == "fontface") c->SetFontFace(value);
-                else if (key == "fontsize") c->SetFontSize(value);
+                else if (key == "class" || key == "classes") c->AddClassNames(value);
+                else if (key == "font-color" || key == "fontcolor" || key == "color" || key == "fgcolor" || key == "text-color") c->SetFontColor(value);
+                else if (key == "font-face" || key == "fontface") c->SetFontFace(value);
+                else if (key == "font-size" || key == "fontsize") c->SetFontSize(value);
                 else if (key == "height") c->SetHeight(value);
                 else if (key == "label") c->SetLabel(value);
                 else if (key == "left") c->SetTether(LEFT, value);
+                else if (key == "max-width") c->SetMaxWidth(value);
+                else if (key == "min-width") c->SetMinWidth(value);
                 else if (key == "right") c->SetTether(RIGHT, value);
                 else if (key == "top") c->SetTether(TOP, value);
-                else if (key == "type") c->SetElementType(value);
+                else if (key == "type" || key == "element-type") c->SetElementType(value);
                 else if (key == "width") c->SetWidth(value);
                 else
                 {
@@ -204,7 +206,7 @@ namespace jaml
         }
     }
 
-    std::string_view JamlParser::ParseKey()
+    std::string_view AnusParser::ParseKey()
     {
         auto const start = loc.pos;
         for (;; NextChar())
@@ -217,7 +219,7 @@ namespace jaml
         }
     }
 
-    std::string JamlParser::ParseValue()
+    std::string AnusParser::ParseValue()
     {
         auto oss = std::ostringstream{};
         bool const quoted = source[loc.pos] == '"';

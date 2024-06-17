@@ -2,19 +2,19 @@
 
 #include <Windows.h>
 
-#include "JamlClass.h"
-#include "JamlWindow.h"
+#include "AnusClass.h"
+#include "AnusWindow.h"
 #include "MxiLogging.h"
 
-namespace jaml
+namespace Anus
 {
 
-    LRESULT JamlElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    LRESULT AnusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-    class JamlElement
+    class AnusElement
     {
     public:
-        JamlElement(std::string_view const & name) : m_name(std::string{ name })
+        AnusElement(std::string_view const & name) : m_name(std::string{ name })
             { if (name.empty()) MX_THROW("All elements require a unique name"); };
 
         static void registerClass(HINSTANCE hInstance);
@@ -35,7 +35,7 @@ namespace jaml
         HWND getOuterHwnd() const noexcept;
         HWND getInnerHwnd() const noexcept;
         HFONT getFont() const;
-        JamlElementType getType() const;
+        AnusElementType getType() const;
         std::string const & getFontFace() const;
         Measure const & getFontSize() const;
         FontStyle const & getFontStyle() const;
@@ -61,7 +61,7 @@ namespace jaml
         void setTextAlignH(Edge const v);
         void setTextColor(Color const & v);
         void setTextColor(std::string const & spec);
-        void setType(JamlElementType const v);
+        void setType(AnusElementType const v);
         void setType(std::string_view const & v);
         void setValue(std::string_view const & v);
         void setVisible(bool const v = true);
@@ -92,13 +92,15 @@ namespace jaml
         // Move futureRect to currentRect and redraw everything
         void CommitLayout();
 
-        JamlElement * GetSibling(std::string_view const & name) const;
+        AnusElement * GetSibling(std::string_view const & name) const;
+        AnusElement * GetSibling(Edge const edge) const;
+        static Tether const GetDefaultTether(Edge const edge);
         Tether const * GetTether(Edge const edge) const;
-        JamlWindow const * GetWindow() const;
-        std::vector<std::shared_ptr<JamlElement>> m_children = {};
+        AnusWindow const * GetWindow() const;
+        std::vector<std::shared_ptr<AnusElement>> m_children = {};
         std::string m_name;
-        JamlElement * m_parent = nullptr;
-        JamlClass * m_class = nullptr;
+        AnusElement * m_parent = nullptr;
+        AnusClass * m_class = nullptr;
         ResolvedRect m_currentRect;
         ResolvedRect m_futureRect;
 
@@ -120,7 +122,7 @@ namespace jaml
         Measure size[2] = { {0, NONE}, {0, NONE} };
         Tether tethers[4];
         Color textColor;
-        JamlElementType type = JamlElementType::GENERIC;
+        AnusElementType type = AnusElementType::GENERIC;
         std::string value;
         bool visible = true;
 

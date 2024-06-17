@@ -42,31 +42,31 @@
     <ClInclude Include="resource\targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\jaml.h">
+    <ClInclude Include="src\anus.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\JamlElement.h">
+    <ClInclude Include="src\AnusElement.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\MxiLogging.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\JamlParser.h">
+    <ClInclude Include="src\AnusParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\JamlWindow.h">
+    <ClInclude Include="src\AnusWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\JamlClass.h">
+    <ClInclude Include="src\AnusClass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\JamlColor.h">
+    <ClInclude Include="src\AnusColor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\JamlMeasure.h">
+    <ClInclude Include="src\AnusMeasure.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\JamlFont.h">
+    <ClInclude Include="src\AnusFont.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -95,34 +95,34 @@
     <ClCompile Include="src\MxiUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\jaml.cpp">
+    <ClCompile Include="src\anus.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="edgemanifestxml.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JamlElement.cpp">
+    <ClCompile Include="src\AnusElement.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\MxiLogging.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JamlParser.cpp">
+    <ClCompile Include="src\AnusParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JamlWindow.cpp">
+    <ClCompile Include="src\AnusWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JamlClass.cpp">
+    <ClCompile Include="src\AnusClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JamlColor.cpp">
+    <ClCompile Include="src\AnusColor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JamlMeasure.cpp">
+    <ClCompile Include="src\AnusMeasure.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\JamlFont.cpp">
+    <ClCompile Include="src\AnusFont.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

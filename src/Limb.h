@@ -3,7 +3,7 @@
 #include <Windows.h>
 
 #include "Database.h"
-#include "jaml.h"
+#include "Anus.h"
 
 namespace mx
 {
@@ -21,7 +21,7 @@ namespace mx
     private:
         static void BuildGui();
         static void CreateQueryBar();
-        static jaml::Window * gui;
+        static Anus::Window * gui;
         static Database db;
     };
 }

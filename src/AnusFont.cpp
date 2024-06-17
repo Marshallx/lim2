@@ -1,6 +1,6 @@
-#include "JamlFont.h"
+#include "AnusFont.h"
 
-namespace jaml
+namespace Anus
 {
     int getFontHeight(HWND hwnd)
     {

@@ -11,9 +11,9 @@
 
 #include "MxUtils.h"
 
-#include "jaml.h"
+#include "Anus.h"
 
-namespace jaml
+namespace Anus
 {
     using namespace mx::MxUtils;
 
@@ -35,9 +35,9 @@ namespace jaml
 
     
 
-    void jaml_log(JamlLogSeverity const & sev, char const * message)
+    void Anus_log(AnusLogSeverity const & sev, char const * message)
     {
-        std::cout << "JAML LOG: " << message;
+        std::cout << "Anus LOG: " << message;
     }
 
     LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -723,7 +723,7 @@ namespace jaml
         wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
         wcex.hbrBackground = CreateSolidBrush(RGB(0x9C, 0xD6, 0xE4));
         wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_LEGOINVENTORYMANAGER2);
-        wcex.lpszClassName = L"JAML_WINDOW";
+        wcex.lpszClassName = L"Anus_WINDOW";
         wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
         RegisterClassExW(&wcex);
 

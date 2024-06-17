@@ -1,9 +1,9 @@
 #include "MxiLogging.h"
 #include "MxiUtils.h"
 
-#include "JamlElement.h"
+#include "AnusElement.h"
 
-namespace jaml
+namespace Anus
 {
 
     namespace
@@ -132,22 +132,22 @@ namespace jaml
         }
     }
 
-    void JamlElement::registerClass(HINSTANCE hInstance)
+    void AnusElement::registerClass(HINSTANCE hInstance)
     {
         WNDCLASSEXW wcex;
         wcex.cbSize = sizeof(WNDCLASSEX);
         wcex.style = CS_HREDRAW | CS_VREDRAW;
-        wcex.lpfnWndProc = JamlElement_WndProc;
+        wcex.lpfnWndProc = AnusElement_WndProc;
         wcex.cbClsExtra = 0;
         wcex.cbWndExtra = 0;
         wcex.hInstance = hInstance;
         wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
         wcex.hbrBackground = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF));
-        wcex.lpszClassName = L"JAML_ELEMENT";
+        wcex.lpszClassName = L"Anus_ELEMENT";
         RegisterClassExW(&wcex);
     }
 
-    LRESULT JamlElement::paint(HWND hwnd, HDC hdc)
+    LRESULT AnusElement::paint(HWND hwnd, HDC hdc)
     {
             //SetTextColor(hdc, elem->getTextColor().ref());
             //SetBkColor(hdc, elem->getBackgroundColor().ref());
@@ -248,7 +248,7 @@ namespace jaml
                 SelectObject(hdc, hOldFont);
     }
 
-    LRESULT JamlElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+    LRESULT AnusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         LRESULT lResult = 0;
         LONG full_style = GetWindowLongW(hwnd, GWL_STYLE);
@@ -266,10 +266,10 @@ namespace jaml
             return lResult;
         }
 
-        auto elem = (JamlElement *)GetPropA((HWND)lParam, "elem");
+        auto elem = (AnusElement *)GetPropA((HWND)lParam, "elem");
         if (!elem)
         {
-            MX_LOG_ERROR("JamlElement_WndProc called for non-JamlElement.");
+            MX_LOG_ERROR("AnusElement_WndProc called for non-AnusElement.");
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
         }
 
@@ -420,7 +420,7 @@ namespace jaml
         return lResult;
     }
 
-    void JamlElement::Build()
+    void AnusElement::Build()
     {
         auto window = GetWindow();
         for (auto & cp : window->GetClassMap().m_map)
@@ -429,7 +429,7 @@ namespace jaml
             if (c->GetElement()) continue;
             if (c->GetName().starts_with('.')) continue;
             if (c->GetParentName() != m_name) continue;
-            auto ep = std::make_shared<JamlElement>(JamlElement{ c->GetName() });
+            auto ep = std::make_shared<AnusElement>(AnusElement{ c->GetName() });
             m_children.push_back(ep);
             auto e = ep.get();
             c->SetElement(e);
@@ -438,7 +438,7 @@ namespace jaml
         }
     }
 
-    JamlElement * JamlElement::GetSibling(std::string_view const & name) const
+    AnusElement * AnusElement::GetSibling(std::string_view const & name) const
     {
         for (auto const & sibling : m_parent->m_children)
         {
@@ -447,19 +447,42 @@ namespace jaml
         return nullptr;
     }
 
-    JamlWindow const * JamlElement::GetWindow() const
+    AnusElement * AnusElement::GetSibling(Edge const edge) const
+    {
+        for (size_t i = 0; i < m_parent->m_children.size(); ++i)
+        {
+            auto sibling = m_parent->m_children[i];
+            if (sibling.get() == this)
+            {
+                if (i == 0 || i == m_parent->m_children.size() - 1)
+                {
+                    return m_parent;
+                }
+                if (isFarEdge(edge)) return m_parent->m_children[++i].get();
+                return m_parent->m_children[--i].get();
+            }
+        }
+        return m_parent;
+    }
+
+    AnusWindow const * AnusElement::GetWindow() const
     {
         auto window = this;
         while (window->m_parent) { window = window->m_parent; }
-        return (JamlWindow*)window;
+        return (AnusWindow*)window;
     }
 
-    Tether const * JamlElement::GetTether(Edge const edge) const
+    Tether const * AnusElement::GetTether(Edge const edge) const
     {
         return GetWindow()->GetClassMap().GetTether(edge, m_name);
     }
 
-    void JamlElement::PrepareToComputeLayout()
+    Tether const AnusElement::GetDefaultTether(Edge const edge)
+    {
+        return { ">", ~edge, {0, PX} };
+    }
+
+    void AnusElement::PrepareToComputeLayout()
     {
         m_futureRect = {};
         for (auto child : m_children)
@@ -468,7 +491,7 @@ namespace jaml
         }
     }
 
-    size_t JamlElement::ComputeLayout()
+    size_t AnusElement::ComputeLayout()
     {
         size_t unresolved = 0;
         unresolved += ComputeEdge(TOP);
@@ -484,50 +507,44 @@ namespace jaml
         return unresolved;
     }
 
-    Resolved JamlElement::ComputeEdge(Edge const edge)
+    Resolved AnusElement::ComputeEdge(Edge const edge)
     {
         if (m_futureRect.HasEdge(edge)) return RESOLVED;
 
-        auto const tether = GetTether(edge);
-        if (tether)
+        auto tether = GetTether(edge);
+        auto const defaultTether = GetDefaultTether(edge);
+        if (!tether) tether = &defaultTether;
+        auto const offset = tether->offset.toPixels(this, edgeToDimension(edge));
+        if (!offset.has_value()) return UNRESOLVED;
+        int anchor = 0;
+        if (tether->id.empty() || tether->id == m_parent->m_name)
         {
-            auto const offset = tether->offset.toPixels(this, edgeToDimension(edge));
-            if (!offset.has_value()) return UNRESOLVED;
-            if (tether->id.empty())
+            // Tether to parent
+            if (isFarEdge(tether->edge))
             {
-                // Tether to parent
-                int anchor = 0;
-                if (isFarEdge(tether->edge))
+                if (m_parent->ComputeEdge(tether->edge) == RESOLVED)
                 {
-                    if (m_parent->ComputeEdge(tether->edge) == RESOLVED)
-                    {
-                        anchor = m_parent->m_futureRect.GetEdge(tether->edge);
-                    }
-                    else
-                    {
-                        return UNRESOLVED;
-                    }
+                    anchor = m_parent->m_futureRect.GetEdge(tether->edge);
                 }
-                m_futureRect.SetEdge(edge, anchor + offset.value());
-                return RESOLVED;
+                else
+                {
+                    return UNRESOLVED;
+                }
             }
-
-            // Tether to sibling
-            auto sibling = GetSibling(tether->id);
-            if (!sibling) return UNRESOLVED;
-            if (sibling->ComputeEdge(tether->edge) == UNRESOLVED) return UNRESOLVED;
-            m_futureRect.SetEdge(edge, sibling->m_futureRect.GetEdge(tether->edge) + offset.value());
-            return RESOLVED;
+        }
+        else
+        {
+            // Tether to sibling (adjacent or named)
+            auto sibling = (tether->id == ">") ? GetSibling(edge) : GetSibling(tether->id);
+            auto otherEdge = (tether->id == ">" && sibling == m_parent) ? edge : tether->edge;
+            if (sibling != m_parent || isFarEdge(otherEdge))
+            {
+                if (sibling->ComputeEdge(otherEdge) == UNRESOLVED) return UNRESOLVED;
+                anchor = sibling->m_futureRect.GetEdge(otherEdge);
+            }
         }
 
-        // Auto, use margin from sibling
-        // TODO
-        // margin-left => how far right of prev sib (min)
-        // margin-right => how far right next sib must be (min, iff not tethered)
-        // margin-top => how far below prev sib (min)
-        // margin-bottom => how far below next sib must be (min, iff not tethered)
-        // if margin-left & margin-top specified then it is below prev element and indented from left of parent
-
-        return UNRESOLVED;
+        m_futureRect.SetEdge(edge, anchor + offset.value());
+        return RESOLVED;
     }
 }

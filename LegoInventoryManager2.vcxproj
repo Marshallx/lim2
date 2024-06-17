@@ -142,17 +142,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\jaml.h" />
+    <ClInclude Include="src\anus.h" />
     <ClInclude Include="src\Config.h" />
     <ClInclude Include="src\Database.h" />
     <ClInclude Include="src\Enums.h" />
-    <ClInclude Include="src\JamlColor.h" />
-    <ClInclude Include="src\JamlElement.h" />
-    <ClInclude Include="src\JamlClass.h" />
-    <ClInclude Include="src\JamlFont.h" />
-    <ClInclude Include="src\JamlMeasure.h" />
-    <ClInclude Include="src\JamlParser.h" />
-    <ClInclude Include="src\JamlWindow.h" />
+    <ClInclude Include="src\AnusColor.h" />
+    <ClInclude Include="src\AnusElement.h" />
+    <ClInclude Include="src\AnusClass.h" />
+    <ClInclude Include="src\AnusFont.h" />
+    <ClInclude Include="src\AnusMeasure.h" />
+    <ClInclude Include="src\AnusParser.h" />
+    <ClInclude Include="src\AnusWindow.h" />
     <ClInclude Include="src\LegoInventoryManager2.h" />
     <ClInclude Include="src\Limb.h" />
     <ClInclude Include="resource\Resource.h" />
@@ -163,17 +163,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="edgemanifestxml.cpp" />
-    <ClCompile Include="src\jaml.cpp" />
+    <ClCompile Include="src\anus.cpp" />
     <ClCompile Include="src\Config.cpp" />
     <ClCompile Include="src\Database.cpp" />
     <ClCompile Include="src\Enums.cpp" />
-    <ClCompile Include="src\JamlColor.cpp" />
-    <ClCompile Include="src\JamlElement.cpp" />
-    <ClCompile Include="src\JamlClass.cpp" />
-    <ClCompile Include="src\JamlFont.cpp" />
-    <ClCompile Include="src\JamlMeasure.cpp" />
-    <ClCompile Include="src\JamlParser.cpp" />
-    <ClCompile Include="src\JamlWindow.cpp" />
+    <ClCompile Include="src\AnusColor.cpp" />
+    <ClCompile Include="src\AnusElement.cpp" />
+    <ClCompile Include="src\AnusClass.cpp" />
+    <ClCompile Include="src\AnusFont.cpp" />
+    <ClCompile Include="src\AnusMeasure.cpp" />
+    <ClCompile Include="src\AnusParser.cpp" />
+    <ClCompile Include="src\AnusWindow.cpp" />
     <ClCompile Include="src\LegoInventoryManager2.cpp" />
     <ClCompile Include="src\Limb.cpp" />
     <ClCompile Include="src\LimbGui.cpp" />

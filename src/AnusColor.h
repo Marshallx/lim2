@@ -5,7 +5,7 @@
 
 #include <Windows.h>
 
-namespace jaml
+namespace Anus
 {
 
     class Color

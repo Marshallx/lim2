@@ -6,9 +6,9 @@
 
 #include <Windows.h>
 
-#include "JamlElement.h"
+#include "AnusElement.h"
 
-namespace jaml
+namespace Anus
 {
     enum Axis
     {
@@ -59,7 +59,7 @@ namespace jaml
         Measure(double const value) : value(value), unit(PX) {};
         Measure() : value(0), unit(PX) {};
 
-        std::optional<int> toPixels(JamlElement const * context, Dimension const dim, Side const side = OUTER) const;
+        std::optional<int> toPixels(AnusElement const * context, Dimension const dim, Side const side = OUTER) const;
     };
 
     class Tether
@@ -93,6 +93,8 @@ namespace jaml
         void SetHeight(int px);
     };
 
+    std::string edgeToKeyword(Edge const edge);
+    Edge edgeFromKeyword(std::string_view const & keyword);
     int getDpi(HWND hwnd);
     bool isHEdge(Edge const side);
     bool isVEdge(Edge const side);

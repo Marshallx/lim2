@@ -1,12 +1,12 @@
 #include <regex>
 
-#include "JamlFont.h"
+#include "AnusFont.h"
 #include "MxiLogging.h"
 
-#include "JamlMeasure.h"
+#include "AnusMeasure.h"
 
 
-namespace jaml
+namespace Anus
 {
 
     /*
@@ -20,7 +20,7 @@ namespace jaml
     }
     */
 
-    std::string edgeToString(Edge const edge)
+    std::string edgeToKeyword(Edge const edge)
     {
         switch (edge)
         {
@@ -29,6 +29,18 @@ namespace jaml
         case BOTTOM: return "bottom";
         case RIGHT: return "right";
         case CENTER: return "center";
+        }
+        MX_THROW("Unknown edge.");
+    }
+
+    Edge keywordToEdge(std::string_view const & keyword)
+    {
+        switch (keyword[0])
+        {
+        case 't': return TOP;
+        case 'l': return LEFT;
+        case 'b': return BOTTOM;
+        case 'r': return RIGHT;
         }
         MX_THROW("Unknown edge.");
     }
@@ -96,7 +108,11 @@ namespace jaml
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
 
         auto matches = std::smatch{};
-        if (!std::regex_search(spec, matches, regex)) MX_THROW(std::format("Invalid size: bad format. Expected N[.F][px|em|pt|%], saw {}", spec).c_str());
+        if (!std::regex_search(spec, matches, regex))
+        {
+            // TODO "entangled" => max of all elements with same class
+            MX_THROW(std::format("Invalid size: bad format. Expected N[.F][px|em|pt|%], saw {}", spec).c_str());
+        }
 
         double offset = atof(matches[1].str().c_str());
         std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
@@ -108,7 +124,7 @@ namespace jaml
         return { offset, unit };
     }
 
-    std::optional<int> Measure::toPixels(JamlElement const * context, Dimension const dim, Side const side) const
+    std::optional<int> Measure::toPixels(AnusElement const * context, Dimension const dim, Side const side) const
     {
         switch (unit)
         {
@@ -125,9 +141,9 @@ namespace jaml
         }
 
         case PC:
-            if (context->futurePos[side].size[dim].has_value())
+            if (context->m_futureRect[side].size[dim].has_value())
             {
-                return ((double)(context->futurePos[side].size[dim].value())) * value;
+                return ((double)(context->m_futureRect[side].size[dim].value())) * value;
             }
             return std::nullopt;
         }
@@ -181,86 +197,86 @@ namespace jaml
 
     void ResolvedRect::SetTop(int const px)
     {
-        edge[TOP] = px;
-        if (size[HEIGHT].has_value() && !edge[BOTTOM].has_value())
+        m_edge[TOP] = px;
+        if (m_size[HEIGHT].has_value() && !m_edge[BOTTOM].has_value())
         {
-            edge[BOTTOM] = px + size[HEIGHT].value();
+            m_edge[BOTTOM] = px + m_size[HEIGHT].value();
         }
-        else if (edge[BOTTOM].has_value())
+        else if (m_edge[BOTTOM].has_value())
         {
-            size[HEIGHT] = edge[BOTTOM].value() - px;
+            m_size[HEIGHT] = m_edge[BOTTOM].value() - px;
         }
     }
 
     void ResolvedRect::SetBottom(int const px)
     {
-        edge[BOTTOM] = px;
-        if (size[HEIGHT].has_value() && !edge[TOP].has_value())
+        m_edge[BOTTOM] = px;
+        if (m_size[HEIGHT].has_value() && !m_edge[TOP].has_value())
         {
-            edge[TOP] = px - size[HEIGHT].value();
+            m_edge[TOP] = px - m_size[HEIGHT].value();
         }
-        else if (edge[TOP].has_value())
+        else if (m_edge[TOP].has_value())
         {
-            size[HEIGHT] = px - edge[TOP].value();
+            m_size[HEIGHT] = px - m_edge[TOP].value();
         }
     }
 
     void ResolvedRect::SetHeight(int const px)
     {
-        size[HEIGHT] = px;
-        if (edge[TOP].has_value())
+        m_size[HEIGHT] = px;
+        if (m_edge[TOP].has_value())
         {
-            edge[BOTTOM] = edge[TOP].value() + px;
+            m_edge[BOTTOM] = m_edge[TOP].value() + px;
         }
-        else if (edge[BOTTOM].has_value())
+        else if (m_edge[BOTTOM].has_value())
         {
-            edge[TOP] = edge[BOTTOM].value() - px;
+            m_edge[TOP] = m_edge[BOTTOM].value() - px;
         }
     }
 
     void ResolvedRect::SetLeft(int const px)
     {
-        edge[LEFT] = px;
-        if (size[WIDTH].has_value() && !edge[RIGHT].has_value())
+        m_edge[LEFT] = px;
+        if (m_size[WIDTH].has_value() && !m_edge[RIGHT].has_value())
         {
-            edge[RIGHT] = px + size[WIDTH].value();
+            m_edge[RIGHT] = px + m_size[WIDTH].value();
         }
-        else if (edge[RIGHT].has_value())
+        else if (m_edge[RIGHT].has_value())
         {
-            size[WIDTH] = edge[RIGHT].value() - px;
+            m_size[WIDTH] = m_edge[RIGHT].value() - px;
         }
     }
 
     void ResolvedRect::SetRight(int const px)
     {
-        edge[RIGHT] = px;
-        if (size[WIDTH].has_value() && !edge[LEFT].has_value())
+        m_edge[RIGHT] = px;
+        if (m_size[WIDTH].has_value() && !m_edge[LEFT].has_value())
         {
-            edge[LEFT] = px - size[WIDTH].value();
+            m_edge[LEFT] = px - m_size[WIDTH].value();
         }
-        else if (edge[LEFT].has_value())
+        else if (m_edge[LEFT].has_value())
         {
-            size[WIDTH] = px - edge[LEFT].value();
+            m_size[WIDTH] = px - m_edge[LEFT].value();
         }
     }
 
     void ResolvedRect::SetWidth(int const px)
     {
-        size[WIDTH] = px;
-        if (edge[LEFT].has_value())
+        m_size[WIDTH] = px;
+        if (m_edge[LEFT].has_value())
         {
-            edge[RIGHT] = edge[LEFT].value() + px;
+            m_edge[RIGHT] = m_edge[LEFT].value() + px;
         }
-        else if (edge[RIGHT].has_value())
+        else if (m_edge[RIGHT].has_value())
         {
-            edge[LEFT] = edge[RIGHT].value() - px;
+            m_edge[LEFT] = m_edge[RIGHT].value() - px;
         }
     }
 
     size_t ResolvedRect::CountUnresolved() const
     {
-        return !edge[TOP].has_value() + !edge[LEFT].has_value() + !edge[BOTTOM].has_value() + !edge[RIGHT].has_value()
-            + !size[WIDTH].has_value() + !size[HEIGHT].has_value();
+        return !m_edge[TOP].has_value() + !m_edge[LEFT].has_value() + !m_edge[BOTTOM].has_value() + !m_edge[RIGHT].has_value()
+            + !m_size[WIDTH].has_value() + !m_size[HEIGHT].has_value();
     }
 
 }

@@ -6,9 +6,9 @@
 
 namespace mx
 {
-    using namespace jaml;
+    using namespace Anus;
 
-    jaml::Window * Limb::gui = nullptr;
+    Anus::Window * Limb::gui = nullptr;
     Database Limb::db = {};
 
     std::filesystem::path Limb::GetRelPath(char const * relPath)
@@ -29,7 +29,7 @@ namespace mx
 
     void Limb::BuildGui()
     {
-        gui = new Window(GetRelPath("resource\\search.jaml"));
+        gui = new Window(GetRelPath("resource\\search.Anus"));
         gui->setLabel("Lego Inventory Manager 2");
         //CreateQueryBar();
     }
