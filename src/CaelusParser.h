@@ -2,10 +2,10 @@
 
 #include <string_view>
 
-#include "AnusClass.h"
-#include "AnusWindow.h"
+#include "CaelusClass.h"
+#include "CaelusWindow.h"
 
-namespace Anus
+namespace Caelus
 {
     class SourceLoc
     {
@@ -15,10 +15,10 @@ namespace Anus
         size_t col = 1;
     };
 
-    class AnusParser
+    class CaelusParser
     {
     public:
-        AnusParser(std::string_view const & source, AnusClassMap & classes);
+        CaelusParser(std::string_view const & source, CaelusClassMap & classes);
 
     private:
         std::string_view source;
@@ -37,7 +37,7 @@ namespace Anus
         void EatComments();
         std::string_view ParseKey();
         std::string ParseValue();
-        void ParseSection(AnusClassMap & classes);
+        void ParseSection(CaelusClassMap & classes);
 
 
     };

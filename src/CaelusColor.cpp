@@ -1,9 +1,9 @@
 #include <regex>
 
-#include "AnusColor.h"
+#include "CaelusColor.h"
 #include "MxiLogging.h"
 
-namespace Anus
+namespace Caelus
 {
     Color Color::Parse(std::string_view const & specv)
     {

@@ -8,7 +8,7 @@
 
 #include <Windows.h>
 
-namespace Anus
+namespace Caelus
 {
 
     enum Resolved

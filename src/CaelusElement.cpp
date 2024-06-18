@@ -1,9 +1,9 @@
 #include "MxiLogging.h"
 #include "MxiUtils.h"
 
-#include "AnusElement.h"
+#include "CaelusElement.h"
 
-namespace Anus
+namespace Caelus
 {
 
     namespace
@@ -132,22 +132,22 @@ namespace Anus
         }
     }
 
-    void AnusElement::registerClass(HINSTANCE hInstance)
+    void CaelusElement::registerClass(HINSTANCE hInstance)
     {
         WNDCLASSEXW wcex;
         wcex.cbSize = sizeof(WNDCLASSEX);
         wcex.style = CS_HREDRAW | CS_VREDRAW;
-        wcex.lpfnWndProc = AnusElement_WndProc;
+        wcex.lpfnWndProc = CaelusElement_WndProc;
         wcex.cbClsExtra = 0;
         wcex.cbWndExtra = 0;
         wcex.hInstance = hInstance;
         wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
         wcex.hbrBackground = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF));
-        wcex.lpszClassName = L"Anus_ELEMENT";
+        wcex.lpszClassName = L"Caelus_ELEMENT";
         RegisterClassExW(&wcex);
     }
 
-    LRESULT AnusElement::paint(HWND hwnd, HDC hdc)
+    LRESULT CaelusElement::paint(HWND hwnd, HDC hdc)
     {
             //SetTextColor(hdc, elem->getTextColor().ref());
             //SetBkColor(hdc, elem->getBackgroundColor().ref());
@@ -248,7 +248,7 @@ namespace Anus
                 SelectObject(hdc, hOldFont);
     }
 
-    LRESULT AnusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+    LRESULT CaelusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         LRESULT lResult = 0;
         LONG full_style = GetWindowLongW(hwnd, GWL_STYLE);
@@ -266,10 +266,10 @@ namespace Anus
             return lResult;
         }
 
-        auto elem = (AnusElement *)GetPropA((HWND)lParam, "elem");
+        auto elem = (CaelusElement *)GetPropA((HWND)lParam, "elem");
         if (!elem)
         {
-            MX_LOG_ERROR("AnusElement_WndProc called for non-AnusElement.");
+            MX_LOG_ERROR("CaelusElement_WndProc called for non-CaelusElement.");
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
         }
 
@@ -420,7 +420,7 @@ namespace Anus
         return lResult;
     }
 
-    void AnusElement::Build()
+    void CaelusElement::Build()
     {
         auto window = GetWindow();
         for (auto & cp : window->GetClassMap().m_map)
@@ -429,7 +429,7 @@ namespace Anus
             if (c->GetElement()) continue;
             if (c->GetName().starts_with('.')) continue;
             if (c->GetParentName() != m_name) continue;
-            auto ep = std::make_shared<AnusElement>(AnusElement{ c->GetName() });
+            auto ep = std::make_shared<CaelusElement>(CaelusElement{ c->GetName() });
             m_children.push_back(ep);
             auto e = ep.get();
             c->SetElement(e);
@@ -438,7 +438,7 @@ namespace Anus
         }
     }
 
-    AnusElement * AnusElement::GetSibling(std::string_view const & name) const
+    CaelusElement * CaelusElement::GetSibling(std::string_view const & name) const
     {
         for (auto const & sibling : m_parent->m_children)
         {
@@ -447,7 +447,7 @@ namespace Anus
         return nullptr;
     }
 
-    AnusElement * AnusElement::GetSibling(Edge const edge) const
+    CaelusElement * CaelusElement::GetSibling(Edge const edge) const
     {
         for (size_t i = 0; i < m_parent->m_children.size(); ++i)
         {
@@ -465,24 +465,29 @@ namespace Anus
         return m_parent;
     }
 
-    AnusWindow const * AnusElement::GetWindow() const
+    CaelusWindow const * CaelusElement::GetWindow() const
     {
         auto window = this;
         while (window->m_parent) { window = window->m_parent; }
-        return (AnusWindow*)window;
+        return (CaelusWindow*)window;
     }
 
-    Tether const * AnusElement::GetTether(Edge const edge) const
+    Measure const * CaelusElement::GetPaddingDef(Edge const edge) const
+    {
+        return GetWindow()->GetClassMap().GetPadding(edge, m_name);
+    }
+
+    Tether const * CaelusElement::GetTether(Edge const edge) const
     {
         return GetWindow()->GetClassMap().GetTether(edge, m_name);
     }
 
-    Tether const AnusElement::GetDefaultTether(Edge const edge)
+    Tether const CaelusElement::GetDefaultTether(Edge const edge)
     {
         return { ">", ~edge, {0, PX} };
     }
 
-    void AnusElement::PrepareToComputeLayout()
+    void CaelusElement::PrepareToComputeLayout()
     {
         m_futureRect = {};
         for (auto child : m_children)
@@ -491,9 +496,13 @@ namespace Anus
         }
     }
 
-    size_t AnusElement::ComputeLayout()
+    size_t CaelusElement::ComputeLayout()
     {
         size_t unresolved = 0;
+        unresolved += ComputePadding(TOP);
+        unresolved += ComputePadding(LEFT);
+        unresolved += ComputePadding(BOTTOM);
+        unresolved += ComputePadding(RIGHT);
         unresolved += ComputeEdge(TOP);
         unresolved += ComputeEdge(LEFT);
         unresolved += ComputeEdge(BOTTOM);
@@ -502,12 +511,12 @@ namespace Anus
         unresolved += ComputeSize(HEIGHT);
         for (auto child : m_children)
         {
-            child.get()->ComputeLayout();
+            unresolved += child.get()->ComputeLayout();
         }
         return unresolved;
     }
 
-    Resolved AnusElement::ComputeEdge(Edge const edge)
+    Resolved CaelusElement::ComputeEdge(Edge const edge)
     {
         if (m_futureRect.HasEdge(edge)) return RESOLVED;
 
@@ -517,24 +526,25 @@ namespace Anus
         auto const offset = tether->offset.toPixels(this, edgeToDimension(edge));
         if (!offset.has_value()) return UNRESOLVED;
         int anchor = 0;
+        int padding = 0;
         if (tether->id.empty() || tether->id == m_parent->m_name)
         {
-            // Tether to parent
+            // Tether to parent (interior)
+            if (m_parent->ComputePadding(tether->edge) == UNRESOLVED) return UNRESOLVED;
+            padding = m_parent->m_futureRect.GetPadding(tether->edge);
             if (isFarEdge(tether->edge))
             {
-                if (m_parent->ComputeEdge(tether->edge) == RESOLVED)
-                {
-                    anchor = m_parent->m_futureRect.GetEdge(tether->edge);
-                }
-                else
-                {
-                    return UNRESOLVED;
-                }
+                if (m_parent->ComputeSize(edgeToDimension(tether->edge)) == UNRESOLVED) return UNRESOLVED;
+                anchor = m_parent->m_futureRect.GetSize(edgeToDimension(tether->edge)) - padding;
+            }
+            else
+            {
+                anchor = padding;
             }
         }
         else
         {
-            // Tether to sibling (adjacent or named)
+            // Tether to sibling (adjacent or named) (exterior)
             auto sibling = (tether->id == ">") ? GetSibling(edge) : GetSibling(tether->id);
             auto otherEdge = (tether->id == ">" && sibling == m_parent) ? edge : tether->edge;
             if (sibling != m_parent || isFarEdge(otherEdge))
@@ -545,6 +555,63 @@ namespace Anus
         }
 
         m_futureRect.SetEdge(edge, anchor + offset.value());
+        return RESOLVED;
+    }
+
+    Resolved CaelusElement::ComputeSize(Dimension const dim)
+    {
+        if (m_futureRect.HasSize(dim)) return RESOLVED;
+
+        auto px = 0;
+
+        auto const sizeDef = GetSizeDef(dim);
+        if (sizeDef)
+        {
+            auto sizeOpt = sizeDef->toPixels(this, dim);
+            if (!sizeOpt.has_value()) return UNRESOLVED;
+            px = sizeOpt.value();
+        }
+        else
+        {
+            // NB: Don't call ComputeEdge() here -> infinite loop!
+            auto const nearEdge = (dim == HEIGHT) ? TOP : LEFT;
+            auto const farEdge = (dim == HEIGHT) ? BOTTOM : RIGHT;
+            auto const nearTether = GetTether(nearEdge);
+            auto const farTether = GetTether(farEdge);
+            if (!nearTether || !farTether)
+            {
+                // 
+            }
+        }
+
+        m_futureRect.SetSize(dim, px);
+        return RESOLVED;
+    }
+
+    Resolved CaelusElement::ComputePadding(Edge const edge)
+    {
+        if (m_futureRect.HasPadding(edge)) return RESOLVED;
+
+        auto padding = 0;
+
+        auto const paddingDef = GetPaddingDef(edge);
+
+        if (paddingDef)
+        {
+            auto paddingOpt = paddingDef->toPixels(this, edgeToDimension(edge));
+            if (!paddingOpt.has_value()) return UNRESOLVED;
+            padding = paddingOpt.value();
+        }
+
+        auto const borderDef = GetBorderDef(edge);
+        if (borderDef)
+        {
+            auto borderOpt = borderDef->toPixels(this, edgeToDimension(edge));
+            if (!borderOpt.has_value()) return UNRESOLVED;
+            padding += borderOpt.value();
+        }
+
+        m_futureRect.SetPadding(edge, padding);
         return RESOLVED;
     }
 }

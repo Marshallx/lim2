@@ -3,10 +3,10 @@
 #include <optional>
 #include <string>
 
-#include "AnusColor.h"
-#include "AnusMeasure.h"
+#include "CaelusColor.h"
+#include "CaelusMeasure.h"
 
-namespace Anus
+namespace Caelus
 {
     enum FontWeight : int
     {

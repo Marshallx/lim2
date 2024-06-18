@@ -1,6 +1,6 @@
-#include "AnusFont.h"
+#include "CaelusFont.h"
 
-namespace Anus
+namespace Caelus
 {
     int getFontHeight(HWND hwnd)
     {

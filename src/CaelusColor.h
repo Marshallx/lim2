@@ -5,7 +5,7 @@
 
 #include <Windows.h>
 
-namespace Anus
+namespace Caelus
 {
 
     class Color

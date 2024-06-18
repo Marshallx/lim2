@@ -42,31 +42,31 @@
     <ClInclude Include="resource\targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\anus.h">
+    <ClInclude Include="src\Caelus.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\AnusElement.h">
+    <ClInclude Include="src\CaelusElement.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\MxiLogging.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\AnusParser.h">
+    <ClInclude Include="src\CaelusParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\AnusWindow.h">
+    <ClInclude Include="src\CaelusWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\AnusClass.h">
+    <ClInclude Include="src\CaelusClass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\AnusColor.h">
+    <ClInclude Include="src\CaelusColor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\AnusMeasure.h">
+    <ClInclude Include="src\CaelusMeasure.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\AnusFont.h">
+    <ClInclude Include="src\CaelusFont.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -95,34 +95,34 @@
     <ClCompile Include="src\MxiUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\anus.cpp">
+    <ClCompile Include="src\Caelus.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="edgemanifestxml.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AnusElement.cpp">
+    <ClCompile Include="src\CaelusElement.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\MxiLogging.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AnusParser.cpp">
+    <ClCompile Include="src\CaelusParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AnusWindow.cpp">
+    <ClCompile Include="src\CaelusWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AnusClass.cpp">
+    <ClCompile Include="src\CaelusClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AnusColor.cpp">
+    <ClCompile Include="src\CaelusColor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AnusMeasure.cpp">
+    <ClCompile Include="src\CaelusMeasure.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\AnusFont.cpp">
+    <ClCompile Include="src\CaelusFont.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

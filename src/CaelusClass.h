@@ -4,44 +4,45 @@
 #include <string>
 #include <vector>
 
-#include "AnusColor.h"
-#include "AnusFont.h"
-#include "AnusMeasure.h"
+#include "CaelusColor.h"
+#include "CaelusFont.h"
+#include "CaelusMeasure.h"
 #include "MxiLogging.h"
 
-namespace Anus
+namespace Caelus
 {
-    enum AnusElementType
+    enum CaelusElementType
     {
         GENERIC = 0, TEXT, EDITBOX, BUTTON, LISTBOX, COMBOBOX, CHECKBOX, CLASS
     };
 
-    class AnusElement;
-    class AnusWindow;
+    class CaelusElement;
+    class CaelusWindow;
 
 
-    class AnusClass
+    class CaelusClass
     {
-        friend AnusWindow;
+        friend CaelusWindow;
 
     public:
-        AnusClass(std::string_view const & name) : m_name(name)
+        CaelusClass(std::string_view const & name) : m_name(name)
             { if (name.empty()) MX_THROW("All classes and elements require a unique name"); };
 
         void AddClassNames(std::string_view const & classes);
         std::vector<std::string> const & GetClassNames() const;
-        AnusElement const * GetElement() const noexcept;
+        CaelusElement const * GetElement() const noexcept;
         std::string const & GetName() const noexcept;
         std::string const & GetParentName() const noexcept;
         Tether const * GetTether(Edge const edge) const;
+        Measure const * GetPadding(Edge const edge) const;
 
         void SetBackgroundColor(Color const & color);
         void SetBackgroundColor(std::string_view const & color);
         void SetBackgroundColor(uint32_t const color);
         void SetContentAlignmentH(Edge const edge);
         void SetContentAlignmentV(Edge const edge);
-        void SetElement(AnusElement * element);
-        void SetElementType(AnusElementType const type);
+        void SetElement(CaelusElement * element);
+        void SetElementType(CaelusElementType const type);
         void SetElementType(std::string_view const & type);
         void SetFontColor(Color const & color);
         void SetFontColor(std::string_view const & color);
@@ -66,7 +67,7 @@ namespace Anus
         void show();
 
     protected:
-        AnusClass() = delete;
+        CaelusClass() = delete;
 
         std::optional<Edge> m_alignContentH;
         std::optional<Edge> m_alignContentV;
@@ -75,8 +76,8 @@ namespace Anus
         std::optional<Measure> m_borderSize;
         std::optional<Measure> m_borderRadius;
         std::vector<std::string> m_classNames = {};
-        AnusElement * m_element = nullptr;
-        AnusElementType m_elementType = GENERIC;
+        CaelusElement * m_element = nullptr;
+        CaelusElementType m_elementType = GENERIC;
         std::optional<Font> m_font;
         std::filesystem::path m_imagePath;
         std::string m_label;
@@ -90,12 +91,13 @@ namespace Anus
         bool m_visible = true;
     };
 
-    class AnusClassMap
+    class CaelusClassMap
     {
     public:
-        AnusClass * GetClass(std::string_view const & name) const;
-        void GetClassChain(std::string_view const & name, std::vector<AnusClass *> & chain) const;
+        CaelusClass * GetClass(std::string_view const & name) const;
+        void GetClassChain(std::string_view const & name, std::vector<CaelusClass *> & chain) const;
         Tether const * GetTether(Edge const edge, std::string_view const & name) const;
-        std::unordered_map<std::string, std::shared_ptr<AnusClass>> m_map = {};
+        Measure const * GetPadding(Edge const edge, std::string_view const & name) const;
+        std::unordered_map<std::string, std::shared_ptr<CaelusClass>> m_map = {};
     }
 }

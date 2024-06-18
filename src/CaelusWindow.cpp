@@ -2,15 +2,15 @@
 #include <fstream>
 #include <iostream>
 
-#include "AnusParser.h"
+#include "CaelusParser.h"
 
-#include "AnusWindow.h"
+#include "CaelusWindow.h"
 
-namespace Anus
+namespace Caelus
 {
-    void AnusWindow::SetDefaults()
+    void CaelusWindow::SetDefaults()
     {
-        auto cp = std::make_shared<AnusClass>("window");
+        auto cp = std::make_shared<CaelusClass>("window");
         auto c = cp.get();
         definedClasses[c->name] = cp;
         c->font = {};
@@ -24,18 +24,18 @@ namespace Anus
         c->SetBackgroundColor(0xFFFFFF);
     }
 
-    AnusWindow::AnusWindow()
+    CaelusWindow::CaelusWindow()
     {
         SetDefaults();
     }
 
-    AnusWindow::AnusWindow(std::string_view const & AnusSource)
+    CaelusWindow::CaelusWindow(std::string_view const & CaelusSource)
     {
         SetDefaults();
-        AnusParser parser(AnusSource, definedClasses);
+        CaelusParser parser(CaelusSource, definedClasses);
     }
 
-    AnusWindow::AnusWindow(std::filesystem::path const & file)
+    CaelusWindow::CaelusWindow(std::filesystem::path const & file)
     {
         FILE * f = fopen(file.string().c_str(), "r");
 
@@ -43,27 +43,27 @@ namespace Anus
         fseek(f, 0, SEEK_END);
         size_t size = ftell(f);
 
-        auto AnusSource = std::string{};
-        AnusSource.resize(size);
+        auto CaelusSource = std::string{};
+        CaelusSource.resize(size);
 
         rewind(f);
-        fread(AnusSource.data(), sizeof(char), size, f);
+        fread(CaelusSource.data(), sizeof(char), size, f);
 
         SetDefaults();
-        AnusParser parser({ AnusSource }, m_definedClasses);
+        CaelusParser parser({ CaelusSource }, m_definedClasses);
     }
 
-    AnusClassMap const & AnusWindow::GetClassMap() const
+    CaelusClassMap const & CaelusWindow::GetClassMap() const
     {
         return m_definedClasses;
     }
 
-    void AnusWindow::IgnoreErrors(bool const ignore)
+    void CaelusWindow::IgnoreErrors(bool const ignore)
     {
         m_throwOnUnresolved = !ignore;
     }
 
-    int AnusWindow::Start(HINSTANCE hInstance, int const nCmdShow)
+    int CaelusWindow::Start(HINSTANCE hInstance, int const nCmdShow)
     {
         Build(m_definedClasses);
         // Check that all elements were built

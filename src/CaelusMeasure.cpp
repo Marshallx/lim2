@@ -1,12 +1,12 @@
 #include <regex>
 
-#include "AnusFont.h"
+#include "CaelusFont.h"
 #include "MxiLogging.h"
 
-#include "AnusMeasure.h"
+#include "CaelusMeasure.h"
 
 
-namespace Anus
+namespace Caelus
 {
 
     /*
@@ -124,7 +124,7 @@ namespace Anus
         return { offset, unit };
     }
 
-    std::optional<int> Measure::toPixels(AnusElement const * context, Dimension const dim, Side const side) const
+    std::optional<int> Measure::toPixels(CaelusElement const * context, Dimension const dim, Side const side) const
     {
         switch (unit)
         {
@@ -195,6 +195,34 @@ namespace Anus
         MX_THROW("Invalid dimension");
     }
 
+    void ResolvedRect::SetInnerSize(Dimension const dim, int const px)
+    {
+        switch (dim)
+        {
+        case WIDTH: SetInnerWidth(px); return;
+        case HEIGHT: SetInnerHeight(px); return;
+        }
+        MX_THROW("Invalid dimension");
+    }
+
+    void ResolvedRect::SetInnerHeight(int const px)
+    {
+        m_innerSize[HEIGHT] = px;
+        if (m_padd[TOP].has_value() && m_padd[BOTTOM].has_value())
+        {
+            SetHeight(px + m_padd[TOP].value() + m_padd[BOTTOM].value());
+        }
+    }
+
+    void ResolvedRect::SetInnerWidth(int const px)
+    {
+        m_innerSize[WIDTH] = px;
+        if (m_padd[LEFT].has_value() && m_padd[RIGHT].has_value())
+        {
+            SetWidth(px + m_padd[LEFT].value() + m_padd[RIGHT].value());
+        }
+    }
+
     void ResolvedRect::SetTop(int const px)
     {
         m_edge[TOP] = px;
@@ -204,7 +232,7 @@ namespace Anus
         }
         else if (m_edge[BOTTOM].has_value())
         {
-            m_size[HEIGHT] = m_edge[BOTTOM].value() - px;
+            SetHeight(m_edge[BOTTOM].value() - px);
         }
     }
 
@@ -217,7 +245,7 @@ namespace Anus
         }
         else if (m_edge[TOP].has_value())
         {
-            m_size[HEIGHT] = px - m_edge[TOP].value();
+            SetHeight(px - m_edge[TOP].value());
         }
     }
 
@@ -232,6 +260,10 @@ namespace Anus
         {
             m_edge[TOP] = m_edge[BOTTOM].value() - px;
         }
+        if (m_padd[TOP].has_value() && m_padd[BOTTOM].has_value())
+        {
+            m_innerSize[HEIGHT] = px - m_padd[TOP].value() - m_padd[BOTTOM].value();
+        }
     }
 
     void ResolvedRect::SetLeft(int const px)
@@ -243,7 +275,7 @@ namespace Anus
         }
         else if (m_edge[RIGHT].has_value())
         {
-            m_size[WIDTH] = m_edge[RIGHT].value() - px;
+            SetWidth(m_edge[RIGHT].value() - px);
         }
     }
 
@@ -256,7 +288,7 @@ namespace Anus
         }
         else if (m_edge[LEFT].has_value())
         {
-            m_size[WIDTH] = px - m_edge[LEFT].value();
+            SetWidth(px - m_edge[LEFT].value());
         }
     }
 
@@ -270,6 +302,10 @@ namespace Anus
         else if (m_edge[RIGHT].has_value())
         {
             m_edge[LEFT] = m_edge[RIGHT].value() - px;
+        }
+        if (m_padd[LEFT].has_value() && m_padd[RIGHT].has_value())
+        {
+            m_innerSize[WIDTH] = px - m_padd[LEFT].value() - m_padd[RIGHT].value();
         }
     }
 

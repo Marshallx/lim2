@@ -1,13 +1,13 @@
 #include <algorithm>
 #include <regex>
 
-#include "AnusClass.h"
+#include "CaelusClass.h"
 #include "MxiLogging.h"
 #include "MxiUtils.h"
 
-namespace Anus
+namespace Caelus
 {
-    AnusClass * AnusClassMap::GetClass(std::string_view const & name) const
+    CaelusClass * CaelusClassMap::GetClass(std::string_view const & name) const
     {
         for (auto c : m_map)
         {
@@ -16,7 +16,7 @@ namespace Anus
         return nullptr;
     }
 
-    void AnusClassMap::GetClassChain(std::string_view const & name, std::vector<AnusClass *> & chain) const
+    void CaelusClassMap::GetClassChain(std::string_view const & name, std::vector<CaelusClass *> & chain) const
     {
         auto const c = GetClass(name);
         if (!c) return;
@@ -28,9 +28,21 @@ namespace Anus
         }
     }
 
-    Tether const * AnusClassMap::GetTether(Edge const edge, std::string_view const & name) const
+    Measure const * CaelusClassMap::GetPadding(Edge const edge, std::string_view const & name) const
     {
-        auto chain = std::vector<AnusClass *>{};
+        auto chain = std::vector<CaelusClass *>{};
+        GetClassChain(name, chain);
+        for (auto const c : chain)
+        {
+            auto const p = c->GetPadding(edge);
+            if (p) return p;
+        }
+        return nullptr;
+    }
+
+    Tether const * CaelusClassMap::GetTether(Edge const edge, std::string_view const & name) const
+    {
+        auto chain = std::vector<CaelusClass *>{};
         GetClassChain(name, chain);
         for (auto const c : chain)
         {
@@ -40,7 +52,7 @@ namespace Anus
         return nullptr;
     }
 
-    void AnusClass::AddClassNames(std::string_view const & classes)
+    void CaelusClass::AddClassNames(std::string_view const & classes)
     {
         auto more = mxi::explode(classes);
         // Add classes in reverse order (priority order in source is RTL)
@@ -52,68 +64,74 @@ namespace Anus
         }
     }
 
-    std::vector<std::string> const & AnusClass::GetClassNames() const
+    std::vector<std::string> const & CaelusClass::GetClassNames() const
     {
         return m_classNames;
     }
 
-    AnusElement const * AnusClass::GetElement() const noexcept
+    CaelusElement const * CaelusClass::GetElement() const noexcept
     {
         return m_element;
     }
 
-    std::string const & AnusClass::GetName() const noexcept
+    std::string const & CaelusClass::GetName() const noexcept
     {
         return m_name;
     }
 
-    std::string const & AnusClass::GetParentName() const noexcept
+    std::string const & CaelusClass::GetParentName() const noexcept
     {
         return m_parentName;
     }
 
-    Tether const * AnusClass::GetTether(Edge const edge) const
+    Measure const * CaelusClass::GetPadding(Edge const edge) const
+    {
+        if (edge > 4) MX_THROW("Invalid padding edge");
+        return m_padding[edge].has_value() ? &m_padding[edge].value() : nullptr;
+    }
+
+    Tether const * CaelusClass::GetTether(Edge const edge) const
     {
         if (edge > 4) MX_THROW("Invalid tether edge");
         return m_tethers[edge].has_value() ? &m_tethers[edge].value() : nullptr;
     }
 
-    void AnusClass::SetBackgroundColor(Color const & color)
+    void CaelusClass::SetBackgroundColor(Color const & color)
     {
         m_backgroundColor = color;
     }
 
-    void AnusClass::SetBackgroundColor(uint32_t const color)
+    void CaelusClass::SetBackgroundColor(uint32_t const color)
     {
         m_backgroundColor = { color };
     }
 
-    void AnusClass::SetBackgroundColor(std::string_view const & color)
+    void CaelusClass::SetBackgroundColor(std::string_view const & color)
     {
         SetBackgroundColor(Color::Parse(color));
     }
 
-    void AnusClass::SetContentAlignmentH(Edge const edge)
+    void CaelusClass::SetContentAlignmentH(Edge const edge)
     {
         m_alignContentH = edge;
     }
 
-    void AnusClass::SetContentAlignmentV(Edge const edge)
+    void CaelusClass::SetContentAlignmentV(Edge const edge)
     {
         m_alignContentV = edge;
     }
 
-    void AnusClass::SetElement(AnusElement const * element)
+    void CaelusClass::SetElement(CaelusElement const * element)
     {
         m_element = element;
     }
 
-    void AnusClass::SetElementType(AnusElementType const type)
+    void CaelusClass::SetElementType(CaelusElementType const type)
     {
         m_elementType = type;
     }
 
-    void AnusClass::SetElementType(std::string_view const & type)
+    void CaelusClass::SetElementType(std::string_view const & type)
     {
         if (type == "button") { m_elementType = BUTTON; return; }
         if (type == "combobox") { m_elementType = COMBOBOX; return; }
@@ -124,86 +142,86 @@ namespace Anus
         m_elementType = GENERIC;
     }
 
-    void AnusClass::SetFontColor(Color const & color)
+    void CaelusClass::SetFontColor(Color const & color)
     {
         if (!m_font.has_value()) m_font = Font{};
         m_font.value().SetColor(color);
     }
 
-    void AnusClass::SetFontColor(std::string_view const & color)
+    void CaelusClass::SetFontColor(std::string_view const & color)
     {
         if (!m_font.has_value()) m_font = Font{};
         m_font.value().SetColor(color);
     }
 
-    void AnusClass::SetFontFace(std::string_view const & face)
+    void CaelusClass::SetFontFace(std::string_view const & face)
     {
         if (!m_font.has_value()) m_font = Font{};
         m_font.value().SetFace(face);
     }
 
-    void AnusClass::SetFontSize(std::string_view const & size)
+    void CaelusClass::SetFontSize(std::string_view const & size)
     {
         SetFontSize(size);
     }
 
-    void AnusClass::SetFontStyle(std::string_view const & style)
+    void CaelusClass::SetFontStyle(std::string_view const & style)
     {
         if (!m_font.has_value()) m_font = Font{};
         m_font.value().SetStyle(style);
     }
 
-    void AnusClass::SetFontWeight(std::string_view const & weight)
+    void CaelusClass::SetFontWeight(std::string_view const & weight)
     {
         if (!m_font.has_value()) m_font = Font{};
         m_font.value().SetWeight(weight);
     }
 
-    void AnusClass::SetFontWeight(int const weight)
+    void CaelusClass::SetFontWeight(int const weight)
     {
         if (!m_font.has_value()) m_font = Font{};
         m_font.value().SetWeight(weight);
     }
 
-    void AnusClass::SetHeight(std::string_view const & height)
+    void CaelusClass::SetHeight(std::string_view const & height)
     {
         m_size[HEIGHT] = Measure::Parse(height);
     }
 
-    void AnusClass::SetImagePath(std::filesystem::path const & path)
+    void CaelusClass::SetImagePath(std::filesystem::path const & path)
     {
         m_imagePath = path;
     }
 
-    void AnusClass::SetLabel(std::string_view const & v)
+    void CaelusClass::SetLabel(std::string_view const & v)
     {
         m_label = v;
     }
 
-    void AnusClass::SetOpacity(uint8_t const v)
+    void CaelusClass::SetOpacity(uint8_t const v)
     {
         m_opacity = v;
     }
 
-    void AnusClass::SetPadding(Edge const edge, Measure const & v)
+    void CaelusClass::SetPadding(Edge const edge, Measure const & v)
     {
         m_padding[edge] = v;
     }
 
-    void AnusClass::SetParentName(std::string_view const & v)
+    void CaelusClass::SetParentName(std::string_view const & v)
     {
         m_parentName = v.empty() ? std::string{"window"} : std::string{v};
         if (m_name.starts_with('.')) MX_THROW("Classes cannot have a parent");
     }
 
-    void AnusClass::SetTether(Edge const myEdge, std::string_view const & otherId, Edge const otherEdge, Measure const & offset)
+    void CaelusClass::SetTether(Edge const myEdge, std::string_view const & otherId, Edge const otherEdge, Measure const & offset)
     {
         if (m_name == "window") return; // window has no parent or siblings so cannot be tethered
         m_tethers[myEdge] = { otherId, otherEdge, offset };
         // TODO Validate that no tether has cyclic dependencies
     }
 
-    void AnusClass::SetTether(Edge const myEdge, std::string const & spec)
+    void CaelusClass::SetTether(Edge const myEdge, std::string const & spec)
     {
         /* Examples
             left=id>right+5px
@@ -255,19 +273,19 @@ namespace Anus
         else MX_THROW(std::format("Invalid tether: bad format. Expected [id>side][±offset em|px], saw {}", spec).c_str());
     }
 
-    void AnusClass::SetValue(std::string_view const & v)
+    void CaelusClass::SetValue(std::string_view const & v)
     {
         m_value = v;
     }
 
-    void AnusClass::SetVisible(bool const v)
+    void CaelusClass::SetVisible(bool const v)
     {
         m_visible = v;
     }
-    void AnusClass::hide() { SetVisible(false); }
-    void AnusClass::show() { SetVisible(true); }
+    void CaelusClass::hide() { SetVisible(false); }
+    void CaelusClass::show() { SetVisible(true); }
 
-    void AnusClass::SetWidth(std::string_view const & width)
+    void CaelusClass::SetWidth(std::string_view const & width)
     {
         if (width == "auto") m_size[WIDTH].reset();
         else m_size[WIDTH] = Measure::Parse(width);

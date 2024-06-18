@@ -1,9 +1,9 @@
-#include "AnusClass.h"
+#include "CaelusClass.h"
 #include "MxiLogging.h"
 
-#include "AnusParser.h"
+#include "CaelusParser.h"
 
-namespace Anus
+namespace Caelus
 {
     namespace
     {
@@ -21,58 +21,58 @@ namespace Anus
         }
     }
 
-    void AnusParser::Error(std::string_view const & msg) const
+    void CaelusParser::Error(std::string_view const & msg) const
     {
-        MX_THROW(std::format("Anus parse error at {},{}: {}", loc.line, loc.col, msg));
+        MX_THROW(std::format("Caelus parse error at {},{}: {}", loc.line, loc.col, msg));
     }
 
-    void AnusParser::Expect(char const expected) const
+    void CaelusParser::Expect(char const expected) const
     {
         EoiCheck(expected);
         if (source[loc.pos] == expected) return;
         Expected(expected);
     }
 
-    void AnusParser::Expected(std::string_view const & expected) const
+    void CaelusParser::Expected(std::string_view const & expected) const
     {
         Error(std::format("Expected {}", expected));
     }
 
-    void AnusParser::Expected(char const expected) const
+    void CaelusParser::Expected(char const expected) const
     {
         Error(std::format("Expected '{}'", expected));
     }
 
-    void AnusParser::EoiCheck(std::string_view const & expected) const
+    void CaelusParser::EoiCheck(std::string_view const & expected) const
     {
         if (loc.pos < source.size()) return;
         Error(std::format("Unexpected end of input. Expected {}", expected));
     }
 
-    void AnusParser::EoiCheck(char const expected) const
+    void CaelusParser::EoiCheck(char const expected) const
     {
         if (loc.pos < source.size()) return;
         Error(std::format("Unexpected end of input. Expected '{}'", expected));
     }
 
-    void AnusParser::NextChar()
+    void CaelusParser::NextChar()
     {
         ++loc.pos;
         ++loc.col;
     }
 
-    char AnusParser::Peek() const
+    char CaelusParser::Peek() const
     {
         if (loc.pos >= source.size()) return 0;
         return source[loc.pos];
     }
 
-    bool AnusParser::IsWhitespace() const
+    bool CaelusParser::IsWhitespace() const
     {
         return isWhitespace(source[loc.pos]);
     }
 
-    void AnusParser::EatWhitespace(bool const eatLF)
+    void CaelusParser::EatWhitespace(bool const eatLF)
     {
         while (loc.pos < source.size())
         {
@@ -94,7 +94,7 @@ namespace Anus
         }
     }
 
-    void AnusParser::EatComments()
+    void CaelusParser::EatComments()
     {
         while (loc.pos < source.size())
         {
@@ -120,7 +120,7 @@ namespace Anus
         }
     }
 
-    AnusParser::AnusParser(std::string_view const & source, AnusClassMap & classes) : source(source)
+    CaelusParser::CaelusParser(std::string_view const & source, CaelusClassMap & classes) : source(source)
     {
         while (loc.pos < source.size())
         {
@@ -130,7 +130,7 @@ namespace Anus
         }
     };
 
-    void AnusParser::ParseSection(AnusClassMap & classes)
+    void CaelusParser::ParseSection(CaelusClassMap & classes)
     {
         Expect('[');
         NextChar();
@@ -159,7 +159,7 @@ namespace Anus
             }
             if (source[loc.pos] == ';') Expected(']');
         }
-        auto cp = std::make_shared<AnusClass>(AnusClass{name});
+        auto cp = std::make_shared<CaelusClass>(CaelusClass{name});
         classes[name] = cp;
         auto c = cp.get();
         for (;; NextChar())
@@ -206,7 +206,7 @@ namespace Anus
         }
     }
 
-    std::string_view AnusParser::ParseKey()
+    std::string_view CaelusParser::ParseKey()
     {
         auto const start = loc.pos;
         for (;; NextChar())
@@ -219,7 +219,7 @@ namespace Anus
         }
     }
 
-    std::string AnusParser::ParseValue()
+    std::string CaelusParser::ParseValue()
     {
         auto oss = std::ostringstream{};
         bool const quoted = source[loc.pos] == '"';

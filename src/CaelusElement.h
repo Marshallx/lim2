@@ -2,19 +2,19 @@
 
 #include <Windows.h>
 
-#include "AnusClass.h"
-#include "AnusWindow.h"
+#include "CaelusClass.h"
+#include "CaelusWindow.h"
 #include "MxiLogging.h"
 
-namespace Anus
+namespace Caelus
 {
 
-    LRESULT AnusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    LRESULT CaelusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-    class AnusElement
+    class CaelusElement
     {
     public:
-        AnusElement(std::string_view const & name) : m_name(std::string{ name })
+        CaelusElement(std::string_view const & name) : m_name(std::string{ name })
             { if (name.empty()) MX_THROW("All elements require a unique name"); };
 
         static void registerClass(HINSTANCE hInstance);
@@ -35,7 +35,7 @@ namespace Anus
         HWND getOuterHwnd() const noexcept;
         HWND getInnerHwnd() const noexcept;
         HFONT getFont() const;
-        AnusElementType getType() const;
+        CaelusElementType getType() const;
         std::string const & getFontFace() const;
         Measure const & getFontSize() const;
         FontStyle const & getFontStyle() const;
@@ -61,7 +61,7 @@ namespace Anus
         void setTextAlignH(Edge const v);
         void setTextColor(Color const & v);
         void setTextColor(std::string const & spec);
-        void setType(AnusElementType const v);
+        void setType(CaelusElementType const v);
         void setType(std::string_view const & v);
         void setValue(std::string_view const & v);
         void setVisible(bool const v = true);
@@ -87,20 +87,22 @@ namespace Anus
         size_t ComputeLayout();
 
         Resolved ComputeEdge(Edge const edge);
-        Resolved ComputeDimension(Dimension const dim);
+        Resolved ComputePadding(Edge const edge);
+        Resolved ComputeSize(Dimension const dim);
 
         // Move futureRect to currentRect and redraw everything
         void CommitLayout();
 
-        AnusElement * GetSibling(std::string_view const & name) const;
-        AnusElement * GetSibling(Edge const edge) const;
+        CaelusElement * GetSibling(std::string_view const & name) const;
+        CaelusElement * GetSibling(Edge const edge) const;
         static Tether const GetDefaultTether(Edge const edge);
+        Measure const * GetPaddingDef(Edge const edge) const;
         Tether const * GetTether(Edge const edge) const;
-        AnusWindow const * GetWindow() const;
-        std::vector<std::shared_ptr<AnusElement>> m_children = {};
+        CaelusWindow const * GetWindow() const;
+        std::vector<std::shared_ptr<CaelusElement>> m_children = {};
         std::string m_name;
-        AnusElement * m_parent = nullptr;
-        AnusClass * m_class = nullptr;
+        CaelusElement * m_parent = nullptr;
+        CaelusClass * m_class = nullptr;
         ResolvedRect m_currentRect;
         ResolvedRect m_futureRect;
 
@@ -122,7 +124,7 @@ namespace Anus
         Measure size[2] = { {0, NONE}, {0, NONE} };
         Tether tethers[4];
         Color textColor;
-        AnusElementType type = AnusElementType::GENERIC;
+        CaelusElementType type = CaelusElementType::GENERIC;
         std::string value;
         bool visible = true;
 

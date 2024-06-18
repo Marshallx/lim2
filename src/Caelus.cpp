@@ -11,9 +11,9 @@
 
 #include "MxUtils.h"
 
-#include "Anus.h"
+#include "Caelus.h"
 
-namespace Anus
+namespace Caelus
 {
     using namespace mx::MxUtils;
 
@@ -35,9 +35,9 @@ namespace Anus
 
     
 
-    void Anus_log(AnusLogSeverity const & sev, char const * message)
+    void Caelus_log(CaelusLogSeverity const & sev, char const * message)
     {
-        std::cout << "Anus LOG: " << message;
+        std::cout << "Caelus LOG: " << message;
     }
 
     LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -723,7 +723,7 @@ namespace Anus
         wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
         wcex.hbrBackground = CreateSolidBrush(RGB(0x9C, 0xD6, 0xE4));
         wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_LEGOINVENTORYMANAGER2);
-        wcex.lpszClassName = L"Anus_WINDOW";
+        wcex.lpszClassName = L"Caelus_WINDOW";
         wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
         RegisterClassExW(&wcex);
 

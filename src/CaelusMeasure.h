@@ -6,9 +6,9 @@
 
 #include <Windows.h>
 
-#include "AnusElement.h"
+#include "CaelusElement.h"
 
-namespace Anus
+namespace Caelus
 {
     enum Axis
     {
@@ -59,7 +59,7 @@ namespace Anus
         Measure(double const value) : value(value), unit(PX) {};
         Measure() : value(0), unit(PX) {};
 
-        std::optional<int> toPixels(AnusElement const * context, Dimension const dim, Side const side = OUTER) const;
+        std::optional<int> toPixels(CaelusElement const * context, Dimension const dim, Side const side = OUTER) const;
     };
 
     class Tether
@@ -77,20 +77,28 @@ namespace Anus
     public:
         int GetEdge(Edge const edge) const;
         int GetSize(Dimension const dim) const;
+        int GetPadding(Edge const edge) const;
         bool HasEdge(Edge const edge) const;
         bool HasSize(Dimension const dim) const;
+        bool HasPadding(Edge const edge) const;
         void SetEdge(Edge const edge, int px);
         void SetSize(Dimension const dim, int px);
+        void SetInnerSize(Dimension const dim, int px);
+        void SetPadding(Edge const edge, int px);
         size_t CountUnresolved() const;
     private:
         std::optional<int> m_edge[4];
+        std::optional<int> m_padd[4];
         std::optional<int> m_size[2];
-        void SetTop(int px);
-        void SetLeft(int px);
+        std::optional<int> m_innerSize[2];
         void SetBottom(int px);
-        void SetRight(int px);
-        void SetWidth(int px);
         void SetHeight(int px);
+        void SetInnerHeight(int px);
+        void SetInnerWidth(int px);
+        void SetLeft(int px);
+        void SetRight(int px);
+        void SetTop(int px);
+        void SetWidth(int px);
     };
 
     std::string edgeToKeyword(Edge const edge);
