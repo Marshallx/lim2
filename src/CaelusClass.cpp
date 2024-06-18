@@ -126,11 +126,6 @@ namespace Caelus
         m_element = element;
     }
 
-    void CaelusClass::SetElementType(CaelusElementType const type)
-    {
-        m_elementType = type;
-    }
-
     void CaelusClass::SetElementType(std::string_view const & type)
     {
         if (type == "button") { m_elementType = BUTTON; return; }
@@ -177,12 +172,6 @@ namespace Caelus
         m_font.value().SetWeight(weight);
     }
 
-    void CaelusClass::SetFontWeight(int const weight)
-    {
-        if (!m_font.has_value()) m_font = Font{};
-        m_font.value().SetWeight(weight);
-    }
-
     void CaelusClass::SetHeight(std::string_view const & height)
     {
         m_size[HEIGHT] = Measure::Parse(height);
@@ -203,9 +192,101 @@ namespace Caelus
         m_opacity = v;
     }
 
-    void CaelusClass::SetPadding(Edge const edge, Measure const & v)
+    void CaelusClass::SetPadding(std::string_view const & padding, Edge const edge)
     {
-        m_padding[edge] = v;
+        auto const m = Measure::Parse(padding);
+        if (edge == Edge::ALL)
+        {
+            static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
+            for (auto const edge : edges)
+            {
+                if (!m_padding[edge].has_value()) m_padding[edge] = m;
+            }
+        }
+        else m_padding[edge] = m;
+    }
+
+    void CaelusClass::SetBorder(std::string const & border, Edge const edge)
+    {
+        auto toks = mxi::explode(border, " ");
+        bool tokSolid = false;
+        Measure tokMeasure = {};
+        Color tokColor = {};
+
+        for (size_t i = 0; i < toks.size(); ++i)
+        {
+            auto tok = toks[i];
+            if (tok.empty()) continue;
+            if (tok == "rgb(")
+            {
+                while (++i < toks.size() && toks[i][tok.size() - 1] != ')')
+                {
+                    tok.append(toks[i]);
+                }
+                tokColor = Color::Parse(tok);
+                continue;
+            }
+
+            if (tok == "solid")
+            {
+                tokSolid = true;
+                continue;
+            }
+
+            try
+            {
+                tokMeasure = Measure::Parse(tok);
+            }
+            catch (...) {};
+
+            try
+            {
+                tokColor = Color::Parse(tok);
+            }
+            catch (...) {};
+
+            MX_THROW(std::format("Unidentified border format token: {}", tok));
+        }
+
+        if (edge == Edge::ALL)
+        {
+            static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
+            for (auto const edge : edges)
+            {
+                if (!m_borderWidth[edge].has_value()) m_borderWidth[edge] = tokMeasure;
+                if (!m_borderColor[edge].has_value()) m_borderColor[edge] = tokColor;
+            }
+        }
+        else m_borderWidth[edge] = tokMeasure;
+
+    }
+
+    void CaelusClass::SetBorderWidth(std::string_view const & width, Edge const edge)
+    {
+        auto const m = Measure::Parse(width);
+        if (edge == Edge::ALL)
+        {
+            static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
+            for (auto const edge : edges)
+            {
+                if (!m_borderWidth[edge].has_value()) m_borderWidth[edge] = m;
+            }
+        }
+        else m_borderWidth[edge] = m;
+    }
+
+    void CaelusClass::SetBorderRadius(std::string_view const & radius, Corner const corner)
+    {
+        auto const m = Measure::Parse(radius);
+        if (corner == Corner::ALL)
+        {
+            static auto const corners = { TOPLEFT, TOPRIGHT, BOTTOMLEFT, BOTTOMRIGHT };
+            for (auto const corner : corners)
+            {
+                if (!m_borderRadius[corner].has_value()) m_borderRadius[corner] = m;
+            }
+        }
+        else m_borderRadius[corner] = m;
     }
 
     void CaelusClass::SetParentName(std::string_view const & v)
@@ -221,56 +302,58 @@ namespace Caelus
         // TODO Validate that no tether has cyclic dependencies
     }
 
-    void CaelusClass::SetTether(Edge const myEdge, std::string const & spec)
+    void CaelusClass::SetTether(Edge const myEdge, std::string_view const & tether)
     {
         /* Examples
-            left=id>right+5px
-
+            left=id.right+5px //explicit sibling
+            left=5px //parent
+            left=+5px // sibling
         */
-        constexpr static auto const pattern = R"(^(?:\s+)?([^>]+)(?:\s+)?>(?:\s+)?(left|right|bottom|top|l|r|t|b)(?:\s+)?(?:(\+|\-[0-9]+(?:\.[0-9]+)?)(?:\s+)?(em|px|%)?)?(?:\s+)?$)";
-        constexpr static auto const adjacentPattern =                                                /**/R"(^(?:\s+)?>(?:\s+)?(?:([0-9]+(?:\.[0-9]+)?)(?:\s+)?(em|px|%)?)?(?:\s+)?$)";
-        constexpr static auto const absolutePattern =                                                              /**/R"(^(?:\s+)?([0-9]+(?:\.[0-9]+)?)(?:\s+)?(em|px|%)?(?:\s+)?$)";
+        auto spec = std::string{ tether };
+        mxi::trim(spec);
+        constexpr static auto const pattern = R"((^(?:([^\.]+)\.(left|right|bottom|top|l|r|t|b))?(?:\s+)?(?:(\+|\-)?(?:\s+)([0-9]+(?:\.[0-9]+)?)(em|px|%|))?$))";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
-        static auto const adjacentRegex = std::regex(adjacentPattern, std::regex_constants::ECMAScript);
-        static auto const absoluteRegex = std::regex(absolutePattern, std::regex_constants::ECMAScript);
+
+        static auto const msgFormat = "Invalid tether: bad format. Expected [id.side][[+|-]offset[px|em|%]], saw {}";
+        static auto const msgEdge = "Invalid tether : incompatible edge axis.";
 
         auto matches = std::smatch{};
-        if (std::regex_search(spec, matches, regex))
+        if (!std::regex_search(spec, matches, regex)) MX_THROW(std::format(msgFormat, spec).c_str());
+
+        auto name = matches[1].str();
+        auto const sedge = matches[2].str();
+        auto const sop = matches[3].str();
+        auto const soffset = matches[4].str();
+        auto const sunit = matches[5].str();
+
+        double offset = soffset.empty() ? 0 : atof(soffset.c_str());
+        Edge otherEdge = myEdge;
+
+        if (!name.empty())
         {
             // Normal tether
-            auto otherEdge = edgeFromKeyword(matches[2].str());
-            if (isHEdge(myEdge) != isHEdge(otherEdge)) MX_THROW("Invalid tether: incompatible edge axis.");
-            double offset = (matches.length() >= 3) ? atof(matches[3].str().c_str()) : 0;
-            std::string const unitStr = (matches.length() >= 4) ? matches[4].str() : "";
-            auto unit = Unit::PX;
-            if (unitStr == "em") unit = EM;
-            else if (unitStr == "%") { unit = PC; offset /= 100; }
-
-            SetTether(myEdge, matches[1].str(), otherEdge, { offset, unit });
+            otherEdge = edgeFromKeyword(sedge);
+            if (isHEdge(otherEdge) != isHEdge(otherEdge)) MX_THROW(msgEdge);
+            if (sop.empty() && !soffset.empty())  MX_THROW(std::format(msgFormat, spec).c_str());
+            if (sop == "-") offset = -offset;
         }
-        else if (std::regex_search(spec, matches, absoluteRegex))
+        else if (sop.empty())
         {
             // Absolute within parent
-            double offset = atof(matches[1].str().c_str());
             if (myEdge == BOTTOM || myEdge == RIGHT) offset = -offset;
-            std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
-            auto unit = Unit::PX;
-            if (unitStr == "em") unit = EM;
-            else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
-            SetTether(myEdge, {}, myEdge, {offset, unit});
         }
-        else if (std::regex_search(spec, matches, adjacentRegex))
+        else
         {
             // Tether to adjacent sibling
-            double offset = atof(matches[1].str().c_str());
+            name = ".";
             if (myEdge == TOP || myEdge == LEFT) offset = -offset;
-            std::string const unitStr = (matches.length() >= 2) ? matches[2].str() : "";
-            auto unit = Unit::PX;
-            if (unitStr == "em") unit = EM;
-            else if (unitStr == "%") MX_THROW("Invalid tether: % not implemented.");
-            SetTether(myEdge, ">", ~myEdge, {offset, unit});
+            otherEdge = ~myEdge;
         }
-        else MX_THROW(std::format("Invalid tether: bad format. Expected [id>side][±offset em|px], saw {}", spec).c_str());
+
+        auto unit = Unit::PX;
+        if (sunit == "em") unit = EM;
+        else if (sunit == "%") { unit = PC; offset /= 100; }
+        SetTether(myEdge, name, otherEdge, { offset, unit });
     }
 
     void CaelusClass::SetValue(std::string_view const & v)

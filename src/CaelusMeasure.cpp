@@ -81,16 +81,6 @@ namespace Caelus
         MX_THROW("Specified edge has no opposite.");
     }
 
-    Side operator ~(Side const side)
-    {
-        switch (side)
-        {
-        case INNER: return OUTER;
-        case OUTER: return INNER;
-        }
-        MX_THROW("Invalid side specified.");
-    }
-
     Dimension edgeToDimension(Edge const edge)
     {
         switch (edge)

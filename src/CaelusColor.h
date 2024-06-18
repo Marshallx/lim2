@@ -12,6 +12,7 @@ namespace Caelus
     {
     public:
         Color() {};
+        Color(Color const &) = default;
         Color(uint32_t rgb) : r(GetRValue(rgb)), g(GetGValue(rgb)), b(GetBValue(rgb)) {};
         Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255) : r(red), g(green), b(blue), a(alpha) {};
         uint8_t red() const noexcept { return r; };

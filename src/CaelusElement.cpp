@@ -477,6 +477,11 @@ namespace Caelus
         return GetWindow()->GetClassMap().GetPadding(edge, m_name);
     }
 
+    Measure const * CaelusElement::GetBorderDef(Edge const edge) const
+    {
+        return GetWindow()->GetClassMap().GetBorder(edge, m_name);
+    }
+
     Tether const * CaelusElement::GetTether(Edge const edge) const
     {
         return GetWindow()->GetClassMap().GetTether(edge, m_name);
@@ -526,12 +531,12 @@ namespace Caelus
         auto const offset = tether->offset.toPixels(this, edgeToDimension(edge));
         if (!offset.has_value()) return UNRESOLVED;
         int anchor = 0;
-        int padding = 0;
+        int nc = 0;
         if (tether->id.empty() || tether->id == m_parent->m_name)
         {
             // Tether to parent (interior)
-            if (m_parent->ComputePadding(tether->edge) == UNRESOLVED) return UNRESOLVED;
-            padding = m_parent->m_futureRect.GetPadding(tether->edge);
+            if (m_parent->ComputeNC(tether->edge) == UNRESOLVED) return UNRESOLVED;
+            nc = m_parent->m_futureRect.GetNC(tether->edge);
             if (isFarEdge(tether->edge))
             {
                 if (m_parent->ComputeSize(edgeToDimension(tether->edge)) == UNRESOLVED) return UNRESOLVED;
@@ -539,14 +544,14 @@ namespace Caelus
             }
             else
             {
-                anchor = padding;
+                anchor = nc;
             }
         }
         else
         {
             // Tether to sibling (adjacent or named) (exterior)
-            auto sibling = (tether->id == ">") ? GetSibling(edge) : GetSibling(tether->id);
-            auto otherEdge = (tether->id == ">" && sibling == m_parent) ? edge : tether->edge;
+            auto sibling = (tether->id == ".") ? GetSibling(edge) : GetSibling(tether->id);
+            auto otherEdge = (tether->id == "." && sibling == m_parent) ? edge : tether->edge;
             if (sibling != m_parent || isFarEdge(otherEdge))
             {
                 if (sibling->ComputeEdge(otherEdge) == UNRESOLVED) return UNRESOLVED;
@@ -591,27 +596,29 @@ namespace Caelus
     Resolved CaelusElement::ComputePadding(Edge const edge)
     {
         if (m_futureRect.HasPadding(edge)) return RESOLVED;
-
-        auto padding = 0;
-
         auto const paddingDef = GetPaddingDef(edge);
-
-        if (paddingDef)
-        {
-            auto paddingOpt = paddingDef->toPixels(this, edgeToDimension(edge));
-            if (!paddingOpt.has_value()) return UNRESOLVED;
-            padding = paddingOpt.value();
-        }
-
-        auto const borderDef = GetBorderDef(edge);
-        if (borderDef)
-        {
-            auto borderOpt = borderDef->toPixels(this, edgeToDimension(edge));
-            if (!borderOpt.has_value()) return UNRESOLVED;
-            padding += borderOpt.value();
-        }
-
-        m_futureRect.SetPadding(edge, padding);
+        if (!paddingDef) return RESOLVED;
+        auto paddingOpt = paddingDef->toPixels(this, edgeToDimension(edge));
+        if (!paddingOpt.has_value()) return UNRESOLVED;
+        m_futureRect.SetPadding(edge, paddingOpt.value());
         return RESOLVED;
+    }
+
+    Resolved CaelusElement::ComputeBorder(Edge const edge)
+    {
+        if (m_futureRect.HasBorder(edge)) return RESOLVED;
+        auto const borderDef = GetBorderDef(edge);
+        if (!borderDef) return RESOLVED;
+        auto borderOpt = borderDef->toPixels(this, edgeToDimension(edge));
+        if (!borderOpt.has_value()) return UNRESOLVED;
+        m_futureRect.SetBorder(edge, borderOpt.value());
+        return RESOLVED;
+    }
+
+    Resolved CaelusElement::ComputeNC(Edge const edge)
+    {
+        auto const r1 = ComputeBorder(edge);
+        auto const r2 = ComputePadding(edge);
+        return (r1 == RESOLVED && r2 == RESOLVED) ? RESOLVED: UNRESOLVED;
     }
 }

@@ -179,6 +179,11 @@ namespace Caelus
             {
                 if (key == "parent") c->SetParentName(value);
                 else if (key == "background-color" || key == "bgcolor") c->SetBackgroundColor(value);
+                else if (key == "border") c->SetBorder(value);
+                else if (key == "border-bottom") c->SetBorder(value, BOTTOM);
+                else if (key == "border-left") c->SetBorder(value, LEFT);
+                else if (key == "border-right") c->SetBorder(value, RIGHT);
+                else if (key == "border-top") c->SetBorder(value, TOP);
                 else if (key == "bottom") c->SetTether(BOTTOM, value);
                 else if (key == "class" || key == "classes") c->AddClassNames(value);
                 else if (key == "font-color" || key == "fontcolor" || key == "color" || key == "fgcolor" || key == "text-color") c->SetFontColor(value);
@@ -189,6 +194,11 @@ namespace Caelus
                 else if (key == "left") c->SetTether(LEFT, value);
                 else if (key == "max-width") c->SetMaxWidth(value);
                 else if (key == "min-width") c->SetMinWidth(value);
+                else if (key == "padding-bottom") c->SetPadding(value, BOTTOM);
+                else if (key == "padding-left") c->SetPadding(value, LEFT);
+                else if (key == "padding-right") c->SetPadding(value, RIGHT);
+                else if (key == "padding-top") c->SetPadding(value, TOP);
+                else if (key == "padding") c->SetPadding(value);
                 else if (key == "right") c->SetTether(RIGHT, value);
                 else if (key == "top") c->SetTether(TOP, value);
                 else if (key == "type" || key == "element-type") c->SetElementType(value);

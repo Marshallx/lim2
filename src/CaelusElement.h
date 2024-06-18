@@ -88,6 +88,8 @@ namespace Caelus
 
         Resolved ComputeEdge(Edge const edge);
         Resolved ComputePadding(Edge const edge);
+        Resolved ComputeBorder(Edge const edge);
+        Resolved ComputeNC(Edge const edge);
         Resolved ComputeSize(Dimension const dim);
 
         // Move futureRect to currentRect and redraw everything
@@ -97,6 +99,7 @@ namespace Caelus
         CaelusElement * GetSibling(Edge const edge) const;
         static Tether const GetDefaultTether(Edge const edge);
         Measure const * GetPaddingDef(Edge const edge) const;
+        Measure const * GetBorderDef(Edge const edge) const;
         Tether const * GetTether(Edge const edge) const;
         CaelusWindow const * GetWindow() const;
         std::vector<std::shared_ptr<CaelusElement>> m_children = {};

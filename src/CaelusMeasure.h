@@ -21,15 +21,18 @@ namespace Caelus
         LEFT = 1,
         BOTTOM = 2,
         RIGHT = 3,
-        CENTER = 4 // only for text align
+        ALL = 4
     };
     Edge operator ~(Edge const edge);
 
-    enum Side : uint8_t
+    enum Corner : uint8_t
     {
-        INNER = 0, OUTER = 1
+        TOPLEFT = 0,
+        TOPRIGHT = 1,
+        BOTTOMLEFT = 2,
+        BOTTOMRIGHT = 3,
+        ALL = 4
     };
-    Side operator ~(Side const side);
 
     enum Dimension : uint8_t
     {
@@ -58,8 +61,9 @@ namespace Caelus
         Measure(double const value, Unit const unit) : unit(unit), value(value) {};
         Measure(double const value) : value(value), unit(PX) {};
         Measure() : value(0), unit(PX) {};
+        Measure(Measure const &) = default;
 
-        std::optional<int> toPixels(CaelusElement const * context, Dimension const dim, Side const side = OUTER) const;
+        std::optional<int> toPixels(CaelusElement const * context, Dimension const dim) const;
     };
 
     class Tether
@@ -75,20 +79,29 @@ namespace Caelus
     class ResolvedRect
     {
     public:
+        int GetBorder(Edge const edge) const;
         int GetEdge(Edge const edge) const;
         int GetSize(Dimension const dim) const;
         int GetPadding(Edge const edge) const;
+        int GetNC(Edge const edge) const;
+
+        bool HasBorder(Edge const edge) const;
         bool HasEdge(Edge const edge) const;
         bool HasSize(Dimension const dim) const;
         bool HasPadding(Edge const edge) const;
+        bool HasNC(Edge const edge) const;
+
+        void SetBorder(Edge const edge, int px);
         void SetEdge(Edge const edge, int px);
         void SetSize(Dimension const dim, int px);
         void SetInnerSize(Dimension const dim, int px);
         void SetPadding(Edge const edge, int px);
+
         size_t CountUnresolved() const;
     private:
         std::optional<int> m_edge[4];
         std::optional<int> m_padd[4];
+        std::optional<int> m_bord[4];
         std::optional<int> m_size[2];
         std::optional<int> m_innerSize[2];
         void SetBottom(int px);
