@@ -15,108 +15,6 @@
 
 namespace Caelus
 {
-    using namespace mx::MxUtils;
-
-    // ========================================================================
-    // ================ Globals ===============================================
-    // ========================================================================
-
-    HINSTANCE g_hInstance;
-
-    // ========================================================================
-    // ================ Functions =============================================
-    // ========================================================================
-
-    
-
-    
-
-    
-
-    
-
-    void Caelus_log(CaelusLogSeverity const & sev, char const * message)
-    {
-        std::cout << "Caelus LOG: " << message;
-    }
-
-    LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-    {
-        switch (message)
-        {
-        case WM_COMMAND: // Application menu
-        {
-            int wmId = LOWORD(wParam);
-            // Parse the menu selections:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                //DialogBox(g_hInstance, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
-        break;
-
-        case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
-            EndPaint(hWnd, &ps);
-        }
-        break;
-
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            break;
-
-        case WM_CTLCOLORSTATIC:
-        {
-            auto elem = (Element *)GetPropA((HWND)lParam, "elem");
-            if (!elem) return DefWindowProc(hWnd, message, wParam, lParam);
-            HDC hdcStatic = (HDC)wParam;
-            SetTextColor(hdcStatic, elem->getTextColor().ref());
-            SetBkColor(hdcStatic, elem->getBackgroundColor().ref());
-            return (INT_PTR)elem->getBackgroundBrush();
-        }
-        break;
-
-        default:
-            return DefWindowProc(hWnd, message, wParam, lParam);
-        }
-        return 0;
-    }
-
-    // Message handler for about box.
-    INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-    {
-        UNREFERENCED_PARAMETER(lParam);
-        switch (message)
-        {
-        case WM_INITDIALOG:
-            return (INT_PTR)TRUE;
-
-        case WM_COMMAND:
-            if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-            {
-                EndDialog(hDlg, LOWORD(wParam));
-                return (INT_PTR)TRUE;
-            }
-            break;
-        }
-        return (INT_PTR)FALSE;
-    }
-
-    // ========================================================================
-    // ================ Methods ===============================================
-    // ========================================================================
-
-    
 
     Element * Element::addChild(std::string_view const & id)
     {
@@ -128,35 +26,6 @@ namespace Caelus
         return child.get();
     }
 
-    Resolved Element::applyOffset(Side const side, Edge const edge, Measure const & offset, bool * canMakeStuffUp)
-    {
-        switch (offset.unit)
-        {
-        case PX:
-            futurePos[side].coord[edge] = futurePos[side].coord[edge].value() + static_cast<int>(offset.value);
-            return RESOLVED;
-
-        case EM:
-            futurePos[side].coord[edge] = futurePos[side].coord[edge].value() + static_cast<int>(
-                static_cast<double>(getFontHeight(hwndInner)) * offset.value);
-            return RESOLVED;
-
-        case PC:
-            auto const of = getParent()->futurePos[side].size[edgeToDimension(edge)];
-            if (of.has_value())
-            {
-                futurePos[side].coord[edge] = futurePos[side].coord[edge].value() + static_cast<int>(
-                    static_cast<double>(of.value()) * offset.value);
-                return RESOLVED;
-            }
-            break;
-        }
-
-        MX_THROW("Unsupported unit for offset calculation.");
-
-        futurePos[side].coord[edge].reset();
-        return UNRESOLVED;
-    }
 
     void Element::commitLayout()
     {
@@ -248,89 +117,7 @@ namespace Caelus
         SendMessage(hwndOuter, WM_SETFONT, (WPARAM)getFont(), NULL);
     }
 
-    Element * Element::findElement(std::string_view const & id)
-    {
-        if (this->id == id) return this;
-        for (auto const & child : m_children)
-        {
-            auto const found = child.get()->findElement(id);
-            if (found) return found;
-        }
-        return nullptr;
-    }
 
-    HBRUSH Element::getBackgroundBrush() const noexcept
-    {
-        return backgroundBrush;
-    }
-
-    Color const & Element::getBackgroundColor() const noexcept
-    {
-        return backgroundColor;
-    }
-
-    Element * Element::getChild(size_t const i) const
-    {
-        return m_children.at(i).get();
-    }
-
-    HFONT Element::getFont() const
-    {
-        auto element = this;
-        while (!element->font) element = element->parent;
-        return element->font;
-    }
-
-    std::string const & Element::getFontFace() const
-    {
-        auto element = this;
-        while (element->fontFace.empty()) element = element->parent;
-        return element->fontFace;
-    }
-
-    Measure const & Element::getFontSize() const
-    {
-        auto element = this;
-        while (!element->fontSize.value && element->parent) element = element->parent;
-        return element->fontSize;
-    }
-
-    FontStyle const & Element::getFontStyle() const
-    {
-        auto element = this;
-        while (element->fontStyle == INHERIT) element = element->parent;
-        return element->fontStyle;
-    }
-
-    int Element::getFontWeight() const
-    {
-        auto element = this;
-        while (!element->fontWeight) element = element->parent;
-        return element->fontWeight;
-    }
-
-    HWND Element::getInnerHwnd() const noexcept
-    {
-        return hwndInner;
-    }
-
-    HWND Element::getOuterHwnd() const noexcept
-    {
-        return hwndOuter;
-    }
-
-    Element * Element::getParent(bool const returnSelfIfRoot) noexcept
-    {
-        if (returnSelfIfRoot && !parent) return this;
-        return parent;
-    }
-
-    Window * Element::getRoot() const noexcept
-    {
-        auto root = this;
-        while (root->parent) root = root->parent;
-        return (Window *)root;
-    }
 
     Color Element::getTextColor() const noexcept
     {
@@ -347,38 +134,6 @@ namespace Caelus
         setVisible(false);
     }
 
-    
-
-    size_t Element::recalculateLayout(bool * canMakeStuffUp)
-    {
-        size_t unresolved = 0;
-        unresolved += recalculateDimension(INNER, WIDTH);
-        unresolved += recalculateDimension(INNER, HEIGHT);
-        unresolved += recalculateDimension(OUTER, WIDTH);
-        unresolved += recalculateDimension(OUTER, HEIGHT);
-
-        unresolved += recalculatePos(OUTER, TOP, canMakeStuffUp);
-        unresolved += recalculatePos(OUTER, LEFT, canMakeStuffUp);
-        unresolved += recalculatePos(OUTER, BOTTOM);
-        unresolved += recalculatePos(OUTER, RIGHT);
-
-        unresolved += recalculatePos(INNER, TOP, canMakeStuffUp);
-        unresolved += recalculatePos(INNER, LEFT, canMakeStuffUp);
-        unresolved += recalculatePos(INNER, BOTTOM);
-        unresolved += recalculatePos(INNER, RIGHT);
-
-
-        for (auto child : m_children)
-        {
-            unresolved += child.get()->recalculateLayout(canMakeStuffUp);
-        }
-
-        return unresolved;
-
-        //TODO if (my update changes my size or position or that of my children) then (re-layout siblings)
-    }
-
-    
 
     Resolved Element::recalculateDimension(Side const side, Dimension const dim)
     {
@@ -471,20 +226,6 @@ namespace Caelus
             if (hwnd) DestroyWindow(hwnd);
         }
         m_children.clear();
-    }
-
-    void Element::remove()
-    {
-        removeChildren();
-        if (hwndInner) DestroyWindow(hwndInner);
-        if (hwndOuter) DestroyWindow(hwndOuter);
-
-        // Remove from parent
-        parent->m_children.erase(parent->m_children.begin() + i, parent->m_children.begin() + i + 1);
-        for (size_t x = 0; i < parent->m_children.size(); ++i)
-        {
-            parent->m_children.at(x).get()->i = x;
-        }
     }
 
     void Element::setBackgroundColor(Color const & v)

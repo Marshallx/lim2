@@ -12,9 +12,9 @@ namespace Caelus
     {
         auto cp = std::make_shared<CaelusClass>("window");
         auto c = cp.get();
-        definedClasses[c->name] = cp;
-        c->font = {};
-        auto f = c->font.value();
+        m_definedClasses.m_map[c->m_name] = cp;
+        c->m_font = {};
+        auto f = c->m_font.value();
         f.SetFace("Arial");
         f.SetSize("12pt");
         f.SetColor(0);
@@ -32,7 +32,7 @@ namespace Caelus
     CaelusWindow::CaelusWindow(std::string_view const & CaelusSource)
     {
         SetDefaults();
-        CaelusParser parser(CaelusSource, definedClasses);
+        CaelusParser parser(CaelusSource, m_definedClasses);
     }
 
     CaelusWindow::CaelusWindow(std::filesystem::path const & file)
@@ -65,14 +65,15 @@ namespace Caelus
 
     int CaelusWindow::Start(HINSTANCE hInstance, int const nCmdShow)
     {
-        Build(m_definedClasses);
+        Build();
+
         // Check that all elements were built
-        for (auto & cp : m_definedClasses)
+        for (auto & cp : m_definedClasses.m_map)
         {
             auto c = cp.second.get();
             if (c->GetElement()) continue;
             if (cp.first.starts_with('.')) continue;
-            for (auto & cp2 : m_definedClasses)
+            for (auto & cp2 : m_definedClasses.m_map)
             {
                 if (cp2.first == c->GetParentName())
                 {
@@ -93,6 +94,7 @@ namespace Caelus
                 MX_THROW("Failed to recalculate layout - cyclic dependency?");
             }
         }
+
         CommitLayout();
     }
 }

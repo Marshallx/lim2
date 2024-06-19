@@ -16,7 +16,7 @@ namespace Caelus
         r.left = r.top = du;
         r.right = r.bottom = 0;
         MapDialogRect(hwnd, &r);
-        return axis == X ? r.left : r.top;
+        return axis == Axis::X ? r.left : r.top;
     }
     */
 
@@ -24,11 +24,11 @@ namespace Caelus
     {
         switch (edge)
         {
-        case TOP: return "top";
-        case LEFT: return "left";
-        case BOTTOM: return "bottom";
-        case RIGHT: return "right";
-        case CENTER: return "center";
+        case Edge::TOP: return "top";
+        case Edge::LEFT: return "left";
+        case Edge::BOTTOM: return "bottom";
+        case Edge::RIGHT: return "right";
+        case Edge::ALL: return "center";
         }
         MX_THROW("Unknown edge.");
     }
@@ -37,10 +37,10 @@ namespace Caelus
     {
         switch (keyword[0])
         {
-        case 't': return TOP;
-        case 'l': return LEFT;
-        case 'b': return BOTTOM;
-        case 'r': return RIGHT;
+        case 't': return Edge::TOP;
+        case 'l': return Edge::LEFT;
+        case 'b': return Edge::BOTTOM;
+        case 'r': return Edge::RIGHT;
         }
         MX_THROW("Unknown edge.");
     }
@@ -56,27 +56,27 @@ namespace Caelus
 
     bool isHEdge(Edge const edge)
     {
-        return edge == LEFT || edge == RIGHT;
+        return edge == Edge::LEFT || edge == Edge::RIGHT;
     }
 
     bool isVEdge(Edge const edge)
     {
-        return edge == TOP || edge == BOTTOM;
+        return edge == Edge::TOP || edge == Edge::BOTTOM;
     }
 
     bool isFarEdge(Edge const edge)
     {
-        return edge == RIGHT || edge == BOTTOM;
+        return edge == Edge::RIGHT || edge == Edge::BOTTOM;
     }
 
     Edge operator ~(Edge const edge)
     {
         switch (edge)
         {
-        case TOP: return BOTTOM;
-        case BOTTOM: return TOP;
-        case LEFT: return RIGHT;
-        case RIGHT: return LEFT;
+        case Edge::TOP: return Edge::BOTTOM;
+        case Edge::BOTTOM: return Edge::TOP;
+        case Edge::LEFT: return Edge::RIGHT;
+        case Edge::RIGHT: return Edge::LEFT;
         }
         MX_THROW("Specified edge has no opposite.");
     }
@@ -85,8 +85,8 @@ namespace Caelus
     {
         switch (edge)
         {
-        case LEFT: case RIGHT: return WIDTH;
-        case TOP: case BOTTOM: return HEIGHT;
+        case Edge::LEFT: case Edge::RIGHT: return Dimension::WIDTH;
+        case Edge::TOP: case Edge::BOTTOM: return Dimension::HEIGHT;
         }
         MX_THROW("Invalid edge specified.");
     }

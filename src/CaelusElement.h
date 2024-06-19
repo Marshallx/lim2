@@ -14,58 +14,54 @@ namespace Caelus
     class CaelusElement
     {
     public:
+        struct
+        {
+            HBRUSH GetBackgroundBrush() const noexcept;
+        } m_drawing;
+
         CaelusElement(std::string_view const & name) : m_name(std::string{ name })
             { if (name.empty()) MX_THROW("All elements require a unique name"); };
 
         static void registerClass(HINSTANCE hInstance);
         LRESULT paint(HWND hwnd, HDC hdc);
 
-        Element * addChild(std::string_view const & id = {});
+        CaelusElement * FindElement(std::string_view const & name);
+        Color const * GetBackgroundColor() const noexcept;
+        CaelusElement * GetChild(size_t const i);
+        HWND GetHwnd() const noexcept;
+        Font GetFont() const;
+        CaelusElement * GetParent() noexcept;
+        CaelusElementType GetType() const;
+        std::string const & GetValue() const;
+        CaelusWindow const * GetWindow() const;
 
-        Element * getChild(size_t const i) const;
-        Element * getParent(bool const returnSelfIfRoot = true) noexcept;
-        Element * findElement(std::string_view const & id);
-        Window * getRoot() const noexcept;
+        CaelusElement * AppendChild(std::string_view const & name);
+        CaelusElement * InsertChild(std::string_view const & name, size_t n);
+        void Remove();
+        void RemoveChild(size_t const n);
+        void RemoveChildren();
 
-        void removeChildren();
-        void remove();
-
-        HBRUSH getBackgroundBrush() const noexcept;
-        Color const & getBackgroundColor() const noexcept;
-        HWND getOuterHwnd() const noexcept;
-        HWND getInnerHwnd() const noexcept;
-        HFONT getFont() const;
-        CaelusElementType getType() const;
-        std::string const & getFontFace() const;
-        Measure const & getFontSize() const;
-        FontStyle const & getFontStyle() const;
-        int getFontWeight() const;
-        Color getTextColor() const noexcept;
-        std::string const & getValue() const;
-
-        static Measure parseMeasure(std::string const & spec);
-
-        void setBackgroundColor(Color const & v);
-        void setBackgroundColor(std::string const & spec);
-        void setFontFace(std::string_view const & face);
-        void setFontSize(Measure const & size);
-        void setFontSize(std::string const & spec);
-        void setFontStyle(FontStyle const & style);
-        void setFontWeight(int const weight);
-        void setHeight(std::string const & spec);
-        void setId(std::string_view const & v);
-        void setImage(HBITMAP v);
-        void setLabel(std::string_view const & v);
-        void setOpacity(uint8_t const v);
-        void setPadding(Edge const edge, Measure const & v);
-        void setTextAlignH(Edge const v);
-        void setTextColor(Color const & v);
-        void setTextColor(std::string const & spec);
-        void setType(CaelusElementType const v);
-        void setType(std::string_view const & v);
-        void setValue(std::string_view const & v);
-        void setVisible(bool const v = true);
-        void setWidth(std::string const & spec);
+        void SetBackgroundColor(Color const & v);
+        void SetBackgroundColor(std::string const & spec);
+        void SetFontFace(std::string_view const & face);
+        void SetFontSize(Measure const & size);
+        void SetFontSize(std::string const & spec);
+        void SetFontStyle(FontStyle const & style);
+        void SetFontWeight(int const weight);
+        void SetHeight(std::string const & spec);
+        void SetId(std::string_view const & v);
+        void SetImage(HBITMAP v);
+        void SetLabel(std::string_view const & v);
+        void SetOpacity(uint8_t const v);
+        void SetPadding(Edge const edge, Measure const & v);
+        void SetTextAlignH(Edge const v);
+        void SetTextColor(Color const & v);
+        void SetTextColor(std::string const & spec);
+        void SetType(CaelusElementType const v);
+        void SetType(std::string_view const & v);
+        void SetValue(std::string_view const & v);
+        void SetVisible(bool const v = true);
+        void SetWidth(std::string const & spec);
 
         void tether(Edge const myEdge, std::string_view const & otherId, Edge const otherEdge, Measure const & offset);
         void tether(Edge const myEdge, std::string const & spec);
@@ -75,9 +71,6 @@ namespace Caelus
 
         void show();
         void hide();
-
-        // Applies a tether offset to an otherwise resolved coordinate. Returns 1 if offset is unresolved (and resets the coord), 0 otherwise.
-        Resolved applyOffset(Side const side, Edge const edge, Measure const & offset);
 
     protected:
         void Build();
@@ -95,43 +88,23 @@ namespace Caelus
         // Move futureRect to currentRect and redraw everything
         void CommitLayout();
 
-        CaelusElement * GetSibling(std::string_view const & name) const;
-        CaelusElement * GetSibling(Edge const edge) const;
+        Measure const * GetBorderWidthDef(Edge const edge) const;
         static Tether const GetDefaultTether(Edge const edge);
         Measure const * GetPaddingDef(Edge const edge) const;
-        Measure const * GetBorderDef(Edge const edge) const;
+        CaelusElement * GetSibling(std::string_view const & name) const;
+        CaelusElement * GetSibling(Edge const edge) const;
+        Measure const * GetSizeDef(Dimension const dim) const;
         Tether const * GetTether(Edge const edge) const;
-        CaelusWindow const * GetWindow() const;
+
         std::vector<std::shared_ptr<CaelusElement>> m_children = {};
+        CaelusClass * m_class = nullptr;
         std::string m_name;
         CaelusElement * m_parent = nullptr;
-        CaelusClass * m_class = nullptr;
         ResolvedRect m_currentRect;
         ResolvedRect m_futureRect;
-
-        HBRUSH backgroundBrush = NULL;
-        bool created = false;
-        std::string fontFace;
-        FontStyle fontStyle = FontStyle::INHERIT;
-        int fontWeight = 0;
-        Measure fontSize = { 0, Unit::NONE };
-        HFONT font = 0;
-        Edge textAlignH = LEFT;
-        HWND hwndInner = 0;
-        HWND hwndOuter = 0;
-        size_t i = 0;
-        HBITMAP image = 0;
-        std::string label;
-        uint8_t opacity = 255;
-        Measure padding[4];
-        Measure size[2] = { {0, NONE}, {0, NONE} };
-        Tether tethers[4];
-        Color textColor;
-        CaelusElementType type = CaelusElementType::GENERIC;
-        std::string value;
-        bool visible = true;
+        HWND m_hwnd = 0;
 
     protected:
-        Element() {};
+        CaelusElement() = default;
     };
 }

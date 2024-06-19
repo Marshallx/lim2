@@ -29,6 +29,8 @@ namespace Caelus
             { if (name.empty()) MX_THROW("All classes and elements require a unique name"); };
 
         void AddClassNames(std::string_view const & classes);
+        Color const * GetBackgroundColor() const;
+        Measure const * GetBorderWidth(Edge const edge) const;
         std::vector<std::string> const & GetClassNames() const;
         CaelusElement const * GetElement() const noexcept;
         std::string const & GetName() const noexcept;
@@ -70,7 +72,7 @@ namespace Caelus
         void hide();
         void show();
 
-    protected:
+    private:
         CaelusClass() = delete;
 
         std::optional<Edge> m_alignContentH;
@@ -99,10 +101,12 @@ namespace Caelus
     class CaelusClassMap
     {
     public:
+        Color const * GetBackgroundColor(std::string_view const & name) const;
+        Measure const * GetBorderWidth(Edge const edge, std::string_view const & name) const;
         CaelusClass * GetClass(std::string_view const & name) const;
         void GetClassChain(std::string_view const & name, std::vector<CaelusClass *> & chain) const;
-        Tether const * GetTether(Edge const edge, std::string_view const & name) const;
         Measure const * GetPadding(Edge const edge, std::string_view const & name) const;
+        Tether const * GetTether(Edge const edge, std::string_view const & name) const;
         std::unordered_map<std::string, std::shared_ptr<CaelusClass>> m_map = {};
-    }
+    };
 }

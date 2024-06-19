@@ -7,6 +7,9 @@
 
 namespace Caelus
 {
+
+    // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     CaelusClass * CaelusClassMap::GetClass(std::string_view const & name) const
     {
         for (auto c : m_map)
@@ -26,6 +29,30 @@ namespace Caelus
         {
             GetClassChain(name2, chain);
         }
+    }
+
+    Color const * CaelusClassMap::GetBackgroundColor(std::string_view const & name) const
+    {
+        auto chain = std::vector<CaelusClass *>{};
+        GetClassChain(name, chain);
+        for (auto const c : chain)
+        {
+            auto const p = c->GetBackgroundColor();
+            if (p) return p;
+        }
+        return nullptr;
+    }
+
+    Measure const * CaelusClassMap::GetBorderWidth(Edge const edge, std::string_view const & name) const
+    {
+        auto chain = std::vector<CaelusClass *>{};
+        GetClassChain(name, chain);
+        for (auto const c : chain)
+        {
+            auto const p = c->GetBorderWidth(edge);
+            if (p) return p;
+        }
+        return nullptr;
     }
 
     Measure const * CaelusClassMap::GetPadding(Edge const edge, std::string_view const & name) const
@@ -52,6 +79,8 @@ namespace Caelus
         return nullptr;
     }
 
+    // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     void CaelusClass::AddClassNames(std::string_view const & classes)
     {
         auto more = mxi::explode(classes);
@@ -62,6 +91,17 @@ namespace Caelus
             if (std::find(m_classNames.begin(), m_classNames.end(), more[i]) != m_classNames.end()) continue;
             m_classNames.push_back(std::string{ more[i]} );
         }
+    }
+
+    Color const * CaelusClass::GetBackgroundColor() const
+    {
+        return m_backgroundColor.has_value() ? &m_backgroundColor.value() : nullptr;
+    }
+
+    Measure const * CaelusClass::GetBorderWidth(Edge const edge) const
+    {
+        if (edge > 4) MX_THROW("Invalid border edge");
+        return m_padding[edge].has_value() ? &m_padding[edge].value() : nullptr;
     }
 
     std::vector<std::string> const & CaelusClass::GetClassNames() const
@@ -121,7 +161,7 @@ namespace Caelus
         m_alignContentV = edge;
     }
 
-    void CaelusClass::SetElement(CaelusElement const * element)
+    void CaelusClass::SetElement(CaelusElement * element)
     {
         m_element = element;
     }
