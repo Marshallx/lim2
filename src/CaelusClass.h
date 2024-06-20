@@ -5,9 +5,9 @@
 #include <vector>
 
 #include "CaelusColor.h"
-#include "CaelusFont.h"
 #include "CaelusMeasure.h"
 #include "MxiLogging.h"
+#include "MxiUtils.h"
 
 namespace Caelus
 {
@@ -30,12 +30,9 @@ namespace Caelus
     };
 
     class CaelusElement;
-    class CaelusWindow;
 
     class CaelusClass
     {
-        friend CaelusWindow;
-
     public:
         CaelusClass(std::string_view const & name) : m_name(name)
             { if (name.empty()) MX_THROW("All classes and elements require a unique name"); };
@@ -62,12 +59,12 @@ namespace Caelus
         void SetBackgroundColor(Color const & color);
         void SetBackgroundColor(std::string_view const & color);
         void SetBackgroundColor(uint32_t const color);
-        void SetBorder(std::string const & spec, Edge const edge = Edge::ALL);
-        void SetBorderColor(Color const & color, Edge const edge = Edge::ALL );
-        void SetBorderColor(std::string_view const & color, Edge const edge = Edge::ALL);
-        void SetBorderColor(uint32_t const color, Edge const edge = Edge::ALL);
-        void SetBorderRadius(std::string_view const & radius, Corner const corner = Corner::ALL);
-        void SetBorderWidth(std::string_view const & width, Edge const edge = Edge::ALL);
+        void SetBorder(std::string const & spec, Edge const edge = Edge::ALL_EDGES);
+        void SetBorderColor(Color const & color, Edge const edge = Edge::ALL_EDGES );
+        void SetBorderColor(std::string_view const & color, Edge const edge = Edge::ALL_EDGES);
+        void SetBorderColor(uint32_t const color, Edge const edge = Edge::ALL_EDGES);
+        void SetBorderRadius(std::string_view const & radius, Corner const corner = Corner::ALL_CORNERS);
+        void SetBorderWidth(std::string_view const & width, Edge const edge = Edge::ALL_EDGES);
         void SetTextAlignH(Edge const edge);
         void SetTextAlignV(Edge const edge);
         void SetElement(CaelusElement * element);
@@ -76,14 +73,14 @@ namespace Caelus
         void SetFontSize(std::string_view const & size);
         void SetFontStyle(std::string_view const & style);
         void SetFontWeight(std::string_view const & weight);
+        void SetFontWeight(int const weight);
         void SetHeight(std::string_view const & height);
         void SetImagePath(std::filesystem::path const & path);
         void SetLabel(std::string_view const & label);
         void SetOpacity(uint8_t const opacity);
-        void SetPadding(std::string_view const & padding, Edge const edge = Edge::ALL);
+        void SetPadding(std::string_view const & padding, Edge const edge = Edge::ALL_EDGES);
         void SetParentName(std::string_view const & parent);
-        void SetTether(Edge const mySide, std::string_view const & otherId,
-            Edge const otherSide, Measure const & offset);
+        void SetTether(Edge const mySide, std::string_view const & otherId, Edge const otherSide, Measure const & offset);
         void SetTether(Edge const mySide, std::string_view const & tether);
         void SetTextColor(Color const & color);
         void SetTextColor(std::string_view const & color);
@@ -127,21 +124,8 @@ namespace Caelus
     class CaelusClassMap
     {
     public:
-        auto const & GetBackgroundColor(std::string_view const & name) const;
-        auto const & GetBorderColor(Edge const edge, std::string_view const & name) const;
-        auto const & GetBorderWidthDef(Edge const edge, std::string_view const & name) const;
         CaelusClass * GetClass(std::string_view const & name) const;
         void GetClassChain(std::string_view const & name, std::vector<CaelusClass *> & chain) const;
-        auto const & GetFontFace(std::string_view const & name) const;
-        auto const & GetFontItalic(std::string_view const & name) const;
-        auto const & GetFontSize(std::string_view const & name) const;
-        auto const & GetFontWeight(std::string_view const & name) const;
-        auto const & GetLabel(std::string_view const & name) const;
-        auto const & GetPaddingDef(Edge const edge, std::string_view const & name) const;
-        auto const & GetSizeDef(Dimension const dim, std::string_view const & name) const;
-        auto const & GetTether(Edge const edge, std::string_view const & name) const;
-        auto const & GetTextAlignH(std::string_view const & name) const;
-        auto const & GetTextColor(std::string_view const & name) const;
         std::unordered_map<std::string, std::shared_ptr<CaelusClass>> m_map = {};
     };
 }

@@ -1,7 +1,7 @@
 #include <Windows.h>
 
 #include "Enums.h"
-#include "MxUtils.h"
+#include "MxiUtils.h"
 
 #include "Config.h"
 
@@ -29,60 +29,60 @@ namespace mx
 
     std::filesystem::path Config::GetConfigFile()
     {
-        return MxUtils::GetModuleFilePath().replace_filename("config.ini");
+        return mxi::GetModuleFilePath().replace_filename("config.ini");
     }
 
     void Config::Load()
     {
         auto file = GetConfigFile();
 
-        auto v = MxUtils::ReadIniStr(file, "Config", "PartsPerPage", "50");
+        auto v = mxi::ReadIniStr(file, "Config", "PartsPerPage", "50");
         partsPerPage = atoi(v.c_str());
 
-        v = MxUtils::ReadIniStr(file, "Config", "OrderPartsBy", "COLOR");
+        v = mxi::ReadIniStr(file, "Config", "OrderPartsBy", "COLOR");
         orderPartsBy = OrderBy::FromString(v);
-        v = MxUtils::ReadIniStr(file, "Config", "OrderSetsBy", "SETID");
+        v = mxi::ReadIniStr(file, "Config", "OrderSetsBy", "SETID");
         orderSetsBy = OrderBy::FromString(v);
 
-        lastPartSearch = MxUtils::ReadIniStr(file, "Config", "LastPartSearch", "");
-        lastSetSearch = MxUtils::ReadIniStr(file, "Config", "LastSetSearch", "");
-        checkDate = MxUtils::ReadIniStr(file, "Config", "CheckDate", "");
+        lastPartSearch = mxi::ReadIniStr(file, "Config", "LastPartSearch", "");
+        lastSetSearch = mxi::ReadIniStr(file, "Config", "LastSetSearch", "");
+        checkDate = mxi::ReadIniStr(file, "Config", "CheckDate", "");
 
-        excludeMinifigs = MxUtils::ReadIniStr(file, "Config", "ExcludeMinifigs", "0") == "1";
-        excludeUnchecked = MxUtils::ReadIniStr(file, "Config", "ExcludeUnchecked", "0") == "1";
-        findMissingImages = MxUtils::ReadIniStr(file, "Config", "FindMissingImages", "0") == "1";
-        hideFulfilled = MxUtils::ReadIniStr(file, "Config", "HideFulfilled", "0") == "1";
-        hideIgnored = MxUtils::ReadIniStr(file, "Config", "HideIgnored", "0") == "1";
-        findFlagged = MxUtils::ReadIniStr(file, "Config", "FindFlagged", "0") == "1";
-        showSetInventoryRecords = MxUtils::ReadIniStr(file, "Config", "ShowSetInventoryRecords", "0") == "1";
+        excludeMinifigs = mxi::ReadIniStr(file, "Config", "ExcludeMinifigs", "0") == "1";
+        excludeUnchecked = mxi::ReadIniStr(file, "Config", "ExcludeUnchecked", "0") == "1";
+        findMissingImages = mxi::ReadIniStr(file, "Config", "FindMissingImages", "0") == "1";
+        hideFulfilled = mxi::ReadIniStr(file, "Config", "HideFulfilled", "0") == "1";
+        hideIgnored = mxi::ReadIniStr(file, "Config", "HideIgnored", "0") == "1";
+        findFlagged = mxi::ReadIniStr(file, "Config", "FindFlagged", "0") == "1";
+        showSetInventoryRecords = mxi::ReadIniStr(file, "Config", "ShowSetInventoryRecords", "0") == "1";
 
-        v = MxUtils::ReadIniStr(file, "Config", "FilterBySets", "");
-        filterBySets = MxUtils::explode(v);
+        v = mxi::ReadIniStr(file, "Config", "FilterBySets", "");
+        filterBySets = mxi::explode(v);
 
 
-        v = MxUtils::ReadIniStr(file, "Config", "FilterByParts", "");
-        filterByParts = MxUtils::explode(v);
+        v = mxi::ReadIniStr(file, "Config", "FilterByParts", "");
+        filterByParts = mxi::explode(v);
     }
 
     void Config::Save()
     {
         auto file = GetConfigFile();
 
-        MxUtils::WriteIniStr(file, "Config", "PartsPerPage", std::format("{}", partsPerPage));
-        MxUtils::WriteIniStr(file, "Config", "OrderPartsBy", orderPartsBy->ToString());
-        MxUtils::WriteIniStr(file, "Config", "OrderSetsBy", orderSetsBy->ToString());
-        MxUtils::WriteIniStr(file, "Config", "LastPartSearch", lastPartSearch);
-        MxUtils::WriteIniStr(file, "Config", "LastSetSearch", lastSetSearch);
-        MxUtils::WriteIniStr(file, "Config", "CheckDate", checkDate);
-        MxUtils::WriteIniStr(file, "Config", "ExcludeMinifigs", excludeMinifigs ? "1" : "0");
-        MxUtils::WriteIniStr(file, "Config", "ExcludeUnchecked", excludeUnchecked ? "1" : "0");
-        MxUtils::WriteIniStr(file, "Config", "FindMissingImages", findMissingImages ? "1" : "0");
-        MxUtils::WriteIniStr(file, "Config", "HideFulfilled", hideFulfilled ? "1" : "0");
-        MxUtils::WriteIniStr(file, "Config", "HideIgnored", hideIgnored ? "1" : "0");
-        MxUtils::WriteIniStr(file, "Config", "FindFlagged", findFlagged ? "1" : "0");
-        MxUtils::WriteIniStr(file, "Config", "ShowSetInventoryRecords", showSetInventoryRecords ? "1" : "0");
+        mxi::WriteIniStr(file, "Config", "PartsPerPage", std::format("{}", partsPerPage));
+        mxi::WriteIniStr(file, "Config", "OrderPartsBy", orderPartsBy->ToString());
+        mxi::WriteIniStr(file, "Config", "OrderSetsBy", orderSetsBy->ToString());
+        mxi::WriteIniStr(file, "Config", "LastPartSearch", lastPartSearch);
+        mxi::WriteIniStr(file, "Config", "LastSetSearch", lastSetSearch);
+        mxi::WriteIniStr(file, "Config", "CheckDate", checkDate);
+        mxi::WriteIniStr(file, "Config", "ExcludeMinifigs", excludeMinifigs ? "1" : "0");
+        mxi::WriteIniStr(file, "Config", "ExcludeUnchecked", excludeUnchecked ? "1" : "0");
+        mxi::WriteIniStr(file, "Config", "FindMissingImages", findMissingImages ? "1" : "0");
+        mxi::WriteIniStr(file, "Config", "HideFulfilled", hideFulfilled ? "1" : "0");
+        mxi::WriteIniStr(file, "Config", "HideIgnored", hideIgnored ? "1" : "0");
+        mxi::WriteIniStr(file, "Config", "FindFlagged", findFlagged ? "1" : "0");
+        mxi::WriteIniStr(file, "Config", "ShowSetInventoryRecords", showSetInventoryRecords ? "1" : "0");
 
-        MxUtils::WriteIniStr(file, "Config", "FilterBySets", MxUtils::implode(filterBySets));
-        MxUtils::WriteIniStr(file, "Config", "FilterByParts", MxUtils::implode(filterByParts));
+        mxi::WriteIniStr(file, "Config", "FilterBySets", mxi::implode(filterBySets));
+        mxi::WriteIniStr(file, "Config", "FilterByParts", mxi::implode(filterByParts));
     }
 }

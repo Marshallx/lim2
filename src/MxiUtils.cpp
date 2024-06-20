@@ -75,7 +75,7 @@ namespace mxi
     std::string implode(std::vector<std::string> const & vs, std::string_view const & delim)
     {
         auto s = std::string{};
-        for (auto v : vs)
+        for (auto const & v : vs)
         {
             s.append(v);
             s.append(delim);

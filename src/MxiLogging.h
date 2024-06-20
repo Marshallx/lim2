@@ -20,5 +20,3 @@ namespace mxi
 #define MX_LOG_WARN(message) mxi::log(mxi::LogLevel::Warn, message)
 #define MX_LOG_ERROR(message) mxi::log(mxi::LogLevel::Error, message)
 #define MX_LOG_FATAL(message) mxi::log(mxi::LogLevel::Fatal, message)
-
-#define MX_THROW(message) throw std::runtime_error(message)

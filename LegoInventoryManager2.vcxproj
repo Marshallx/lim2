@@ -148,7 +148,6 @@
     <ClInclude Include="src\CaelusColor.h" />
     <ClInclude Include="src\CaelusElement.h" />
     <ClInclude Include="src\CaelusClass.h" />
-    <ClInclude Include="src\CaelusFont.h" />
     <ClInclude Include="src\CaelusMeasure.h" />
     <ClInclude Include="src\CaelusParser.h" />
     <ClInclude Include="src\CaelusWindow.h" />
@@ -168,13 +167,11 @@
     <ClCompile Include="src\CaelusColor.cpp" />
     <ClCompile Include="src\CaelusElement.cpp" />
     <ClCompile Include="src\CaelusClass.cpp" />
-    <ClCompile Include="src\CaelusFont.cpp" />
     <ClCompile Include="src\CaelusMeasure.cpp" />
     <ClCompile Include="src\CaelusParser.cpp" />
     <ClCompile Include="src\CaelusWindow.cpp" />
     <ClCompile Include="src\LegoInventoryManager2.cpp" />
     <ClCompile Include="src\Limb.cpp" />
-    <ClCompile Include="src\LimbGui.cpp" />
     <ClCompile Include="src\MxiLogging.cpp" />
     <ClCompile Include="src\sqlite3\sqlite3.c" />
     <ClCompile Include="src\MxiUtils.cpp" />

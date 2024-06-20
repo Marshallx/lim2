@@ -30,6 +30,6 @@ namespace mx
     void Limb::BuildGui()
     {
         gui = new CaelusWindow(GetRelPath("resource\\search.Caelus"));
-        gui->SetLabel("Lego Inventory Manager 2");
+        gui->SetTitle("Lego Inventory Manager 2");
     }
 }

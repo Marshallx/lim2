@@ -5,23 +5,24 @@
 #include "CaelusClass.h"
 #include "CaelusWindow.h"
 #include "MxiLogging.h"
+#include "MxiUtils.h"
 
 namespace Caelus
 {
 
     LRESULT CaelusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
+    class CaelusWindow;
+
     class CaelusElement
     {
-        friend Measure;
+        friend CaelusWindow;
+
     public:
         // Painting
         static void Register(HINSTANCE hInstance);
         LRESULT paint(HWND hwnd, HDC hdc);
-        HBRUSH GetBackgroundBrush();
         HFONT GetHfont();
-        HBRUSH GetBorderBrush();
-        void DrawBorder(HDC hdc);
 
         // Element arrangement
         CaelusElement(std::string_view const & name) : m_name(std::string{ name })
@@ -39,7 +40,7 @@ namespace Caelus
 
         // Style getters
         auto const & GetBackgroundColor() const;
-        CaelusElement * GetChild(size_t const i);
+        CaelusElement * GetChild(size_t const n) const noexcept;
         HWND GetHwnd() const noexcept;
         CaelusElement * GetParent() noexcept;
         CaelusElementType GetType() const;
@@ -86,18 +87,17 @@ namespace Caelus
         Resolved ComputeBorder(Edge const edge);
         Resolved ComputeNC(Edge const edge);
         Resolved ComputeSize(Dimension const dim);
-        std::optional<int> MeasureToPixels(Measure const * measure, Dimension const dim) const;
+        std::optional<int> MeasureToPixels(Measure const & measure, Dimension const dim) const;
 
         // Move futureRect to currentRect and redraw everything
         void CommitLayout(HINSTANCE hInstance);
 
         static Tether const GetDefaultTether(Edge const edge);
-        HFONT GetHfont();
         CaelusElement * GetSibling(std::string_view const & name) const;
         CaelusElement * GetSibling(Edge const edge) const;
 
         // Styles inherited from parent or classes
-        auto const & GetBorderColor() const;
+        auto const & GetBorderColor(Edge const edge) const;
         auto const & GetBorderWidthDef(Edge const edge) const;
         auto const & GetLabel() const;
         auto const & GetFontFace() const;

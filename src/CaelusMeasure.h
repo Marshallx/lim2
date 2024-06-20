@@ -6,8 +6,6 @@
 
 #include <Windows.h>
 
-#include "CaelusElement.h"
-
 namespace Caelus
 {
     enum Axis
@@ -21,7 +19,7 @@ namespace Caelus
         LEFT = 1,
         BOTTOM = 2,
         RIGHT = 3,
-        ALL = 4
+        ALL_EDGES = 4
     };
     Edge operator ~(Edge const edge);
 
@@ -31,7 +29,7 @@ namespace Caelus
         TOPRIGHT = 1,
         BOTTOMLEFT = 2,
         BOTTOMRIGHT = 3,
-        ALL = 4
+        ALL_CORNERS = 4
     };
 
     enum Dimension : uint8_t
@@ -67,7 +65,6 @@ namespace Caelus
     class Tether
     {
     public:
-        Tether() {};
         Tether(std::string_view const & id, Edge const edge, Measure const & offset) : id(id), edge(edge), offset(offset) {};
         std::string id;
         Edge edge;

@@ -1,11 +1,12 @@
 #pragma once
 
 #include "CaelusClass.h"
-#include "CaelusElement.h"
 
 namespace Caelus
 {
-    class CaelusWindow : public CaelusElement
+    class CaelusElement;
+
+    class CaelusWindow
     {
     public:
         CaelusWindow();
@@ -14,11 +15,14 @@ namespace Caelus
         CaelusClassMap const & GetClassMap() const;
         int Start(HINSTANCE hInstance, int const nCmdShow);
         void IgnoreErrors(bool const ignore = true);
+        void SetTitle(std::string_view const & title);
 
     private:
         CaelusWindow(CaelusWindow const &) = delete;
         void SetDefaults();
         bool m_throwOnUnresolved = true;
         CaelusClassMap m_definedClasses = {};
+        CaelusElement * m_client = nullptr;
+        HWND m_hwnd;
     };
 }

@@ -1,5 +1,6 @@
 #include "CaelusClass.h"
 #include "MxiLogging.h"
+#include "MxiUtils.h"
 
 #include "CaelusParser.h"
 
@@ -192,8 +193,8 @@ namespace Caelus
                 else if (key == "height") c->SetHeight(value);
                 else if (key == "label") c->SetLabel(value);
                 else if (key == "left") c->SetTether(LEFT, value);
-                else if (key == "max-width") c->SetMaxWidth(value);
-                else if (key == "min-width") c->SetMinWidth(value);
+                //TODO else if (key == "max-width") c->SetMaxWidth(value);
+                //TODO else if (key == "min-width") c->SetMinWidth(value);
                 else if (key == "padding-bottom") c->SetPadding(value, BOTTOM);
                 else if (key == "padding-left") c->SetPadding(value, LEFT);
                 else if (key == "padding-right") c->SetPadding(value, RIGHT);

@@ -1,7 +1,7 @@
 #include <regex>
 
-#include "CaelusFont.h"
 #include "MxiLogging.h"
+#include "MxiUtils.h"
 
 #include "CaelusMeasure.h"
 
@@ -28,7 +28,7 @@ namespace Caelus
         case Edge::LEFT: return "left";
         case Edge::BOTTOM: return "bottom";
         case Edge::RIGHT: return "right";
-        case Edge::ALL: return "center";
+        case Edge::ALL_EDGES: return "center";
         }
         MX_THROW("Unknown edge.");
     }
@@ -133,10 +133,22 @@ namespace Caelus
         return { offset, unit };
     }
 
+    int ResolvedRect::GetBorder(Edge const edge) const
+    {
+        if (m_bord[edge].has_value()) return m_bord[edge].value();
+        MX_THROW("Unresolved border");
+    }
+
     int ResolvedRect::GetEdge(Edge const edge) const
     {
         if (m_edge[edge].has_value()) return m_edge[edge].value();
         MX_THROW("Unresolved edge");
+    }
+
+    int ResolvedRect::GetPadding(Edge const edge) const
+    {
+        if (m_padd[edge].has_value()) return m_padd[edge].value();
+        MX_THROW("Unresolved padding");
     }
 
     int ResolvedRect::GetSize(Dimension const dim) const
@@ -145,14 +157,29 @@ namespace Caelus
         MX_THROW("Unresolved dimension");
     }
 
+    bool ResolvedRect::HasBorder(Edge const edge) const
+    {
+        return m_bord[edge].has_value();
+    }
+
     bool ResolvedRect::HasEdge(Edge const edge) const
     {
         return m_edge[edge].has_value();
     }
 
+    bool ResolvedRect::HasPadding(Edge const edge) const
+    {
+        return m_padd[edge].has_value();
+    }
+
     bool ResolvedRect::HasSize(Dimension const dim) const
     {
         return m_size[dim].has_value();
+    }
+
+    void ResolvedRect::SetBorder(Edge const edge, int const px)
+    {
+        m_bord[edge] = px;
     }
 
     void ResolvedRect::SetEdge(Edge const edge, int const px)
@@ -165,6 +192,11 @@ namespace Caelus
         case RIGHT: SetRight(px); return;
         }
         MX_THROW("Invalid edge");
+    }
+
+    void ResolvedRect::SetPadding(Edge const edge, int const px)
+    {
+        m_padd[edge] = px;
     }
 
     void ResolvedRect::SetSize(Dimension const dim, int const px)

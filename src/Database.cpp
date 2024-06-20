@@ -2,7 +2,7 @@
 
 #include <Windows.h>
 
-#include "MxUtils.h"
+#include "MxiUtils.h"
 
 #include "Database.h"
 
@@ -34,7 +34,7 @@ namespace mx
     {
         if (r == expected) return;
         auto msg = std::format("Sqlite error: {}/{}\n{}", r, sqlite3_extended_errcode(dbh_), sqlite3_errmsg(dbh_));
-        MessageBox(NULL, MxUtils::Utf16String(msg).c_str(), L"", MB_OK);
+        MessageBox(NULL, mxi::Utf16String(msg).c_str(), L"", MB_OK);
         throw std::runtime_error(msg.c_str());
     }
 }

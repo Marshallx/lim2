@@ -2,6 +2,7 @@
 
 #include "CaelusColor.h"
 #include "MxiLogging.h"
+#include "MxiUtils.h"
 
 namespace Caelus
 {

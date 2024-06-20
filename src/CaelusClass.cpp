@@ -2,8 +2,6 @@
 #include <regex>
 
 #include "CaelusClass.h"
-#include "MxiLogging.h"
-#include "MxiUtils.h"
 
 namespace Caelus
 {
@@ -29,54 +27,6 @@ namespace Caelus
         }
     }
 
-    // =-=-=-=-=-=-=-=-= ClassMap Getters =-=-=-=-=-=-=-=-=
-
-#define CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(FUNC) \
-    auto const & CaelusClassMap::FUNC(std::string_view const & name) const \
-    { \
-        auto chain = std::vector<CaelusClass *>{}; \
-        GetClassChain(name, chain); \
-        using T = decltype(((CaelusClass*)nullptr)->FUNC()); \
-        for (auto const c : chain) \
-        { \
-            auto const o = c->FUNC(); \
-            if (o.has_value()) return o; \
-        } \
-        static T const def{}; \
-        return def; \
-    }
-
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetBackgroundColor);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontFace);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontItalic);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontSize);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontWeight);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetLabel);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetTextAlignH);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetTextColor);
-
-
-#define CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(FUNC, N) \
-    auto const & CaelusClassMap::FUNC(N const n, std::string_view const & name) const \
-    { \
-        auto chain = std::vector<CaelusClass *>{}; \
-        GetClassChain(name, chain); \
-        using T = decltype(((CaelusClass*)nullptr)->FUNC(n)); \
-        for (auto const c : chain) \
-        { \
-            auto const o = c->FUNC(n); \
-            if (o.has_value()) return o; \
-        } \
-        static T const def{}; \
-        return def; \
-    }
-
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetBorderColor, Edge);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetBorderWidthDef, Edge);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetPaddingDef, Edge);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetTether, Edge);
-    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetSizeDef, Dimension);
-
 
     // =-=-=-=-=-=-=-=-= Class Setters =-=-=-=-=-=-=-=-=
 
@@ -84,8 +34,9 @@ namespace Caelus
     {
         auto more = mxi::explode(classes);
         // Add classes in reverse order (priority order in source is RTL)
-        for (auto i = more.size() - 1; i >= 0; --i)
+        for (auto i = more.size(); i != 0;)
         {
+            --i;
             mxi::trim(more[i]);
             if (std::find(m_classNames.begin(), m_classNames.end(), more[i]) != m_classNames.end()) continue;
             m_classNames.push_back(std::string{ more[i] });
@@ -149,7 +100,7 @@ namespace Caelus
             MX_THROW(std::format("Unidentified border format token: {}", tok));
         }
 
-        if (edge == Edge::ALL)
+        if (edge == Edge::ALL_EDGES)
         {
             static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
             for (auto const edge : edges)
@@ -164,8 +115,8 @@ namespace Caelus
 
     void CaelusClass::SetBorderWidth(std::string_view const & width, Edge const edge)
     {
-        auto const m = Measure::Parse(width);
-        if (edge == Edge::ALL)
+        auto m = Measure::Parse(width);
+        if (edge == Edge::ALL_EDGES)
         {
             static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
             for (auto const edge : edges)
@@ -178,10 +129,10 @@ namespace Caelus
 
     void CaelusClass::SetBorderRadius(std::string_view const & radius, Corner const corner)
     {
-        auto const m = Measure::Parse(radius);
-        if (corner == Corner::ALL)
+        auto m = Measure::Parse(radius);
+        if (corner == Corner::ALL_CORNERS)
         {
-            static auto const corners = { TOPLEFT, TOPRIGHT, BOTTOMLEFT, BOTTOMRIGHT };
+            static auto const corners = { Corner::TOPLEFT, Corner::TOPRIGHT, Corner::BOTTOMLEFT, Corner::BOTTOMRIGHT };
             for (auto const corner : corners)
             {
                 if (!m_borderRadius[corner].has_value()) m_borderRadius[corner] = m;
@@ -238,6 +189,12 @@ namespace Caelus
         else m_fontWeight = atoi(std::string(weight).c_str());
     }
 
+    void CaelusClass::SetFontWeight(int const weight)
+    {
+        if (weight <= 0) m_fontWeight.reset();
+        else m_fontWeight = weight;
+    }
+
     void CaelusClass::SetHeight(std::string_view const & height)
     {
         m_size[HEIGHT] = Measure::Parse(height);
@@ -261,7 +218,7 @@ namespace Caelus
     void CaelusClass::SetPadding(std::string_view const & padding, Edge const edge)
     {
         auto const m = Measure::Parse(padding);
-        if (edge == Edge::ALL)
+        if (edge == Edge::ALL_EDGES)
         {
             static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
             for (auto const edge : edges)

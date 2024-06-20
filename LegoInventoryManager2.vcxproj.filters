@@ -63,9 +63,6 @@
     <ClInclude Include="src\CaelusMeasure.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\CaelusFont.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Config.cpp">
@@ -81,9 +78,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Limb.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LimbGui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\sqlite3\sqlite3.c">
@@ -114,9 +108,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\CaelusMeasure.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CaelusFont.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "CaelusElement.h"
 #include "CaelusParser.h"
 
 #include "CaelusWindow.h"
@@ -12,13 +13,13 @@ namespace Caelus
     {
         auto cp = std::make_shared<CaelusClass>("window");
         auto c = cp.get();
-        m_definedClasses.m_map[c->m_name] = cp;
-        SetBackgroundColor(0xFFFFFF);
-        SetFontFace("Arial");
-        SetFontSize("12pt");
-        SetFontStyle("normal");
-        SetFontWeight(REGULAR);
-        SetTextColor(0);
+        m_definedClasses.m_map["window"] = cp;
+        c->SetBackgroundColor(0xFFFFFF);
+        c->SetFontFace("Arial");
+        c->SetFontSize("12pt");
+        c->SetFontStyle("normal");
+        c->SetFontWeight(REGULAR);
+        c->SetTextColor(0);
     }
 
     CaelusWindow::CaelusWindow()
@@ -62,7 +63,8 @@ namespace Caelus
 
     int CaelusWindow::Start(HINSTANCE hInstance, int const nCmdShow)
     {
-        Build();
+        m_client = new CaelusElement("window");
+        m_client->Build();
 
         // Check that all elements were built
         for (auto & cp : m_definedClasses.m_map)
@@ -80,11 +82,11 @@ namespace Caelus
             MX_THROW("Element \"{}\" parent \"{}\" not found.");
         }
 
-        PrepareToComputeLayout();
+        m_client->PrepareToComputeLayout();
         size_t previousUnresolvedCount = 0;
         for(;;)
         {
-            size_t currentUnresolvedCount = ComputeLayout();
+            size_t currentUnresolvedCount = m_client->ComputeLayout();
             if (currentUnresolvedCount == 0) break;
             if (previousUnresolvedCount == currentUnresolvedCount)
             {
@@ -92,7 +94,25 @@ namespace Caelus
             }
         }
 
-        CommitLayout(hInstance);
+        m_client->CommitLayout(hInstance);
+
+        ShowWindow(m_hwnd, nCmdShow);
+        UpdateWindow(m_hwnd);
+
+
+        // Main message loop:
+        //HACCEL hAccelTable = CreateAcceleratorTable(hInstance, MAKEINTRESOURCE(IDC_LEGOINVENTORYMANAGER2));
+        MSG msg;
+        while (GetMessage(&msg, nullptr, 0, 0))
+        {
+            //if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+            {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        }
+
+        return (int)msg.wParam;
     }
 
     /*
@@ -154,25 +174,7 @@ namespace Caelus
 
         commitLayout();
 
-        ShowWindow(hwndOuter, nCmdShow);
-        UpdateWindow(hwndOuter);
-
-        HACCEL hAccelTable = LoadAccelerators(g_hInstance, MAKEINTRESOURCE(IDC_LEGOINVENTORYMANAGER2));
-
-        MSG msg;
-
-
-        // Main message loop:
-        while (GetMessage(&msg, nullptr, 0, 0))
-        {
-            if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-            {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
-        }
-
-        return (int)msg.wParam;
+        
     }
     */
 }
