@@ -3,10 +3,12 @@
 #include <Windows.h>
 
 #include "Database.h"
-#include "Caelus.h"
+#include "CaelusWindow.h"
 
 namespace mx
 {
+    using namespace Caelus;
+
     class Limb
     {
     public:
@@ -21,7 +23,7 @@ namespace mx
     private:
         static void BuildGui();
         static void CreateQueryBar();
-        static Caelus::Window * gui;
+        static CaelusWindow * gui;
         static Database db;
     };
 }

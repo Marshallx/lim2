@@ -72,5 +72,4 @@ namespace Caelus
     {
         m_weight = (weight <= 0) ? REGULAR : weight;
     }
-
 }

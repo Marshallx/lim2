@@ -33,6 +33,34 @@ namespace Caelus
         MX_THROW("Unknown edge.");
     }
 
+    int getDpi(HWND hwnd)
+    {
+        HDC hdc = GetDC(hwnd);
+        if (!hdc) return 0;
+        int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+        ReleaseDC(0, hdc);
+        return dpi;
+    }
+
+    int getFontHeight(HWND hwnd)
+    {
+        TEXTMETRIC tm = {};
+        auto const hdc = GetDC(hwnd);
+        auto const r = GetTextMetrics(hdc, &tm);
+        ReleaseDC(hwnd, hdc);
+        return tm.tmHeight;
+    }
+
+    int getLineHeight(HWND hwnd)
+    {
+        OUTLINETEXTMETRIC tm = {};
+        auto const hdc = GetDC(hwnd);
+        auto const r = GetOutlineTextMetrics(hdc, sizeof(OUTLINETEXTMETRIC), &tm);
+        ReleaseDC(hwnd, hdc);
+        auto lineHeight = (-tm.otmDescent) + tm.otmLineGap + tm.otmAscent;
+        return MulDiv(lineHeight, getDpi(hwnd), 96);
+    }
+
     Edge keywordToEdge(std::string_view const & keyword)
     {
         switch (keyword[0])
@@ -43,15 +71,6 @@ namespace Caelus
         case 'r': return Edge::RIGHT;
         }
         MX_THROW("Unknown edge.");
-    }
-
-    int getDpi(HWND hwnd)
-    {
-        HDC hdc = GetDC(hwnd);
-        if (!hdc) return 0;
-        int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-        ReleaseDC(0, hdc);
-        return dpi;
     }
 
     bool isHEdge(Edge const edge)
@@ -112,33 +131,6 @@ namespace Caelus
         else if (unitStr == "pt") unit = PT;
 
         return { offset, unit };
-    }
-
-    std::optional<int> Measure::toPixels(CaelusElement const * context, Dimension const dim, Side const side) const
-    {
-        switch (unit)
-        {
-        case PX:
-            return (int)value;
-
-        case EM:
-            return static_cast<int>(static_cast<double>(getFontHeight(context->getHwnd())) * value));
-
-        case PT:
-        {
-            auto hdc = GetDC(context->getInnerHwnd());
-            return MulDiv((int)value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
-        }
-
-        case PC:
-            if (context->m_futureRect[side].size[dim].has_value())
-            {
-                return ((double)(context->m_futureRect[side].size[dim].value())) * value;
-            }
-            return std::nullopt;
-        }
-
-        MX_THROW("Unsupported unit for conversion to pixels.");
     }
 
     int ResolvedRect::GetEdge(Edge const edge) const
@@ -301,8 +293,14 @@ namespace Caelus
 
     size_t ResolvedRect::CountUnresolved() const
     {
-        return !m_edge[TOP].has_value() + !m_edge[LEFT].has_value() + !m_edge[BOTTOM].has_value() + !m_edge[RIGHT].has_value()
-            + !m_size[WIDTH].has_value() + !m_size[HEIGHT].has_value();
+        size_t count = 0;
+        count += !m_edge[TOP].has_value();
+        count += !m_edge[LEFT].has_value();
+        count += !m_edge[BOTTOM].has_value();
+        count += !m_edge[RIGHT].has_value();
+        count += !m_size[WIDTH].has_value();
+        count += !m_size[HEIGHT].has_value();
+        return count;
     }
 
 }

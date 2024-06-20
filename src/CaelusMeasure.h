@@ -62,8 +62,6 @@ namespace Caelus
         Measure(double const value) : value(value), unit(PX) {};
         Measure() : value(0), unit(PX) {};
         Measure(Measure const &) = default;
-
-        std::optional<int> toPixels(CaelusElement const * context, Dimension const dim) const;
     };
 
     class Tether
@@ -115,8 +113,10 @@ namespace Caelus
     };
 
     std::string edgeToKeyword(Edge const edge);
-    Edge edgeFromKeyword(std::string_view const & keyword);
+    Edge keywordToEdge(std::string_view const & keyword);
     int getDpi(HWND hwnd);
+    int getFontHeight(HWND hwnd);
+    int getLineHeight(HWND hwnd);
     bool isHEdge(Edge const side);
     bool isVEdge(Edge const side);
     bool isFarEdge(Edge const edge);

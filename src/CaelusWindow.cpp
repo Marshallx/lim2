@@ -13,15 +13,12 @@ namespace Caelus
         auto cp = std::make_shared<CaelusClass>("window");
         auto c = cp.get();
         m_definedClasses.m_map[c->m_name] = cp;
-        c->m_font = {};
-        auto f = c->m_font.value();
-        f.SetFace("Arial");
-        f.SetSize("12pt");
-        f.SetColor(0);
-        f.SetWeight(REGULAR);
-        f.SetStyle("normal");
-
-        c->SetBackgroundColor(0xFFFFFF);
+        SetBackgroundColor(0xFFFFFF);
+        SetFontFace("Arial");
+        SetFontSize("12pt");
+        SetFontStyle("normal");
+        SetFontWeight(REGULAR);
+        SetTextColor(0);
     }
 
     CaelusWindow::CaelusWindow()
@@ -95,6 +92,87 @@ namespace Caelus
             }
         }
 
-        CommitLayout();
+        CommitLayout(hInstance);
     }
+
+    /*
+    int Window::start(HINSTANCE hInstance, int const nCmdShow)
+    {
+        g_hInstance = hInstance;
+
+        WNDCLASSEXW wcex;
+        wcex.cbSize = sizeof(WNDCLASSEX);
+        wcex.style = CS_HREDRAW | CS_VREDRAW;
+        wcex.lpfnWndProc = WndProc;
+        wcex.cbClsExtra = 0;
+        wcex.cbWndExtra = 0;
+        wcex.hInstance = g_hInstance;
+        wcex.hIcon = LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_LEGOINVENTORYMANAGER2));
+        wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+        wcex.hbrBackground = CreateSolidBrush(RGB(0x9C, 0xD6, 0xE4));
+        wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_LEGOINVENTORYMANAGER2);
+        wcex.lpszClassName = L"Caelus_WINDOW";
+        wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+        RegisterClassExW(&wcex);
+
+        hwndOuter = CreateWindowW(wcex.lpszClassName, Utf16String(label).c_str(), WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, g_hInstance, nullptr);
+        if (!hwndOuter) throw std::runtime_error("Failed to create outer parent window");
+
+        RECT rect{};
+        GetWindowRect(hwndOuter, &rect);
+        currentPos[INNER].coord[TOP] = 0;
+        currentPos[INNER].coord[LEFT] = 0;
+        currentPos[INNER].coord[BOTTOM] = currentPos[INNER].size[HEIGHT] = rect.bottom - rect.top;
+        currentPos[INNER].coord[RIGHT] = currentPos[INNER].size[WIDTH] = rect.right - rect.left;
+
+        currentPos[OUTER] = currentPos[INNER];
+        futurePos[INNER] = currentPos[INNER];
+        futurePos[OUTER] = currentPos[OUTER];
+
+        hwndInner = CreateWindow(L"STATIC", L"", WS_CHILD | WS_VISIBLE, currentPos[OUTER].coord[LEFT].value(), currentPos[OUTER].coord[TOP].value(), currentPos[OUTER].size[WIDTH].value(), currentPos[OUTER].size[HEIGHT].value(), hwndOuter, NULL, g_hInstance, NULL);
+        if (!hwndOuter) throw std::runtime_error("Failed to create inner parent window");
+
+        updateFont();
+
+        size_t unresolved = (std::numeric_limits<size_t>::max)();
+        while (unresolved)
+        {
+            auto const previous = unresolved;
+            unresolved = recalculateLayout();
+            if (unresolved == previous)
+            {
+                if (throwOnUnresolved)
+                {
+                    MX_THROW("Failed to resolve one or more coordinates => cyclic tether dependency!");
+                }
+                bool canMakeStuffUp = true;
+                unresolved = recalculateLayout(&canMakeStuffUp);
+                if (unresolved == previous) MX_THROW("Failed to resolve any coordinates despite force-resolve!")
+            }
+        }
+
+        commitLayout();
+
+        ShowWindow(hwndOuter, nCmdShow);
+        UpdateWindow(hwndOuter);
+
+        HACCEL hAccelTable = LoadAccelerators(g_hInstance, MAKEINTRESOURCE(IDC_LEGOINVENTORYMANAGER2));
+
+        MSG msg;
+
+
+        // Main message loop:
+        while (GetMessage(&msg, nullptr, 0, 0))
+        {
+            if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+            {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        }
+
+        return (int)msg.wParam;
+    }
+    */
 }

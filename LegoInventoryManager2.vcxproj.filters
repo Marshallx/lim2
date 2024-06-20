@@ -42,9 +42,6 @@
     <ClInclude Include="resource\targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Caelus.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\CaelusElement.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -93,9 +90,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\MxiUtils.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Caelus.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="edgemanifestxml.cpp">

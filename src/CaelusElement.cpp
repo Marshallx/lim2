@@ -8,54 +8,6 @@ namespace Caelus
 
     namespace
     {
-        static void draw_nc_frame(HDC  hdc, RECT * rect, BOOL  active, DWORD style, DWORD ex_style)
-        {
-            INT width, height;
-
-            if (style & WS_THICKFRAME)
-            {
-                width = get_system_metrics(SM_CXFRAME) - get_system_metrics(SM_CXDLGFRAME);
-                height = get_system_metrics(SM_CYFRAME) - get_system_metrics(SM_CYDLGFRAME);
-
-                NtGdiSelectBrush(hdc, get_sys_color_brush(active ? COLOR_ACTIVEBORDER :
-                    COLOR_INACTIVEBORDER));
-                /* Draw frame */
-                NtGdiPatBlt(hdc, rect->left, rect->top, rect->right - rect->left, height, PATCOPY);
-                NtGdiPatBlt(hdc, rect->left, rect->top, width, rect->bottom - rect->top, PATCOPY);
-                NtGdiPatBlt(hdc, rect->left, rect->bottom - 1, rect->right - rect->left, -height, PATCOPY);
-                NtGdiPatBlt(hdc, rect->right - 1, rect->top, -width, rect->bottom - rect->top, PATCOPY);
-
-                InflateRect(rect, -width, -height);
-            }
-
-            /* Now the other bit of the frame */
-            if ((style & (WS_BORDER | WS_DLGFRAME)) || (ex_style & WS_EX_DLGMODALFRAME))
-            {
-                DWORD color;
-
-                width = get_system_metrics(SM_CXDLGFRAME) - get_system_metrics(SM_CXEDGE);
-                height = get_system_metrics(SM_CYDLGFRAME) - get_system_metrics(SM_CYEDGE);
-                /* This should give a value of 1 that should also work for a border */
-
-                if (ex_style & (WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE)) color = COLOR_3DFACE;
-                else if (ex_style & WS_EX_STATICEDGE) color = COLOR_WINDOWFRAME;
-                else if (style & (WS_DLGFRAME | WS_THICKFRAME)) color = COLOR_3DFACE;
-                else color = COLOR_WINDOWFRAME;
-                NtGdiSelectBrush(hdc, get_sys_color_brush(color));
-
-                /* Draw frame */
-                NtGdiPatBlt(hdc, rect->left, rect->top,
-                    rect->right - rect->left, height, PATCOPY);
-                NtGdiPatBlt(hdc, rect->left, rect->top,
-                    width, rect->bottom - rect->top, PATCOPY);
-                NtGdiPatBlt(hdc, rect->left, rect->bottom - 1,
-                    rect->right - rect->left, -height, PATCOPY);
-                NtGdiPatBlt(hdc, rect->right - 1, rect->top,
-                    -width, rect->bottom - rect->top, PATCOPY);
-
-                InflateRect(rect, -width, -height);
-            }
-        }
 
         HRGN set_control_clipping(HDC hdc, const RECT * rect)
         {
@@ -103,7 +55,7 @@ namespace Caelus
                 && (GetObjectType(hBitmap) == OBJ_BITMAP)
                 && (hMemDC = CreateCompatibleDC(hdc)))
             {
-                BITMAP bm;
+                BITMAP bm = {};
                 RECT rcClient;
 
                 GetObjectW(hBitmap, sizeof(bm), &bm);
@@ -132,26 +84,40 @@ namespace Caelus
         }
     }
 
-    void CaelusElement::registerClass(HINSTANCE hInstance)
+    void CaelusElement::Register(HINSTANCE hInstance)
     {
-        WNDCLASSEXW wcex;
-        wcex.cbSize = sizeof(WNDCLASSEX);
-        wcex.style = CS_HREDRAW | CS_VREDRAW;
-        wcex.lpfnWndProc = CaelusElement_WndProc;
-        wcex.cbClsExtra = 0;
-        wcex.cbWndExtra = 0;
-        wcex.hInstance = hInstance;
-        wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-        wcex.hbrBackground = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF));
-        wcex.lpszClassName = L"Caelus_ELEMENT";
+        WNDCLASSEXW wcex = {
+            .cbSize = sizeof(WNDCLASSEX),
+            .style = CS_HREDRAW | CS_VREDRAW,
+            .lpfnWndProc = CaelusElement_WndProc,
+            .cbClsExtra = 0,
+            .cbWndExtra = 0,
+            .hInstance = hInstance,
+            .hCursor = LoadCursor(nullptr, IDC_ARROW),
+            .hbrBackground = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF)),
+            .lpszClassName = L"Caelus_ELEMENT",
+        };
         RegisterClassExW(&wcex);
+    }
+
+    void CaelusElement::DrawBorder(HDC hdc)
+    {
+        auto hbrush = CreateSolidBrush(GetBorderColor().rgb());
+        NtGdiPatBlt(hdc, rect->left, rect->top,
+                rect->right - rect->left, height, PATCOPY);
+            NtGdiPatBlt(hdc, rect->left, rect->top,
+                width, rect->bottom - rect->top, PATCOPY);
+            NtGdiPatBlt(hdc, rect->left, rect->bottom - 1,
+                rect->right - rect->left, -height, PATCOPY);
+            NtGdiPatBlt(hdc, rect->right - 1, rect->top,
+                -width, rect->bottom - rect->top, PATCOPY);
     }
 
     LRESULT CaelusElement::paint(HWND hwnd, HDC hdc)
     {
             //SetTextColor(hdc, elem->getTextColor().ref());
             //SetBkColor(hdc, elem->getBackgroundColor().ref());
-            auto hbrush = getBackgroundBrush();
+            auto hbrush = m_drawing.GetBackgroundBrush();
             auto style = GetWindowLongW(hwnd, GWL_STYLE);
 
             RECT rc;
@@ -209,13 +175,11 @@ namespace Caelus
                     format |= DT_SINGLELINE | DT_WORD_ELLIPSIS;
             }
 
-            if (hFont = getFont())
-                hOldFont = SelectObject(hdc, hFont);
+            if (hFont = GetHfont()) hOldFont = SelectObject(hdc, hFont);
 
             if ((style & SS_TYPEMASK) != SS_SIMPLE)
             {
                 FillRect(hdc, &rc, hbrush);
-                if (!IsWindowEnabled(hwnd)) SetTextColor(hdc, GetSysColor(COLOR_GRAYTEXT));
             }
 
             buf_size = 256;
@@ -299,6 +263,7 @@ namespace Caelus
 
         case WM_NCCREATE:
         {
+            // Only for top level windows (ala dialogs)
             CREATESTRUCTW * cs = (CREATESTRUCTW *)lParam;
 
             if (full_style & SS_SUNKEN || style == SS_ETCHEDHORZ || style == SS_ETCHEDVERT)
@@ -361,7 +326,7 @@ namespace Caelus
             return 0; // Ignore
 
         case WM_GETFONT:
-            return (LRESULT)elem->getFont();
+            return (LRESULT)elem->m_drawing.GetHfont();
 
         case WM_NCHITTEST:
             if (full_style & SS_NOTIFY)
@@ -420,7 +385,7 @@ namespace Caelus
         return lResult;
     }
 
-    // =-=-=-=-=-=-=-=-= Layout Computing =-=-=-=-=-=-=-=-=
+    // =-=-=-=-=-=-=-=-= Layout =-=-=-=-=-=-=-=-=
 
     void CaelusElement::Build()
     {
@@ -504,7 +469,7 @@ namespace Caelus
         unresolved += ComputeEdge(RIGHT);
         unresolved += ComputeSize(WIDTH);
         unresolved += ComputeSize(HEIGHT);
-        for (auto child : m_children)
+        for (auto & child : m_children)
         {
             unresolved += child.get()->ComputeLayout();
         }
@@ -556,7 +521,7 @@ namespace Caelus
 
         // Auto size (from content)
         int furthestCoord = 0;
-        for (auto cp : m_children)
+        for (auto & cp : m_children)
         {
             auto child = cp.get();
             if (!child->m_futureRect.HasEdge(farEdge)) return UNRESOLVED;
@@ -573,13 +538,170 @@ namespace Caelus
     void CaelusElement::PrepareToComputeLayout()
     {
         m_futureRect = {};
-        for (auto child : m_children)
+        for (auto & child : m_children)
         {
             child.get()->PrepareToComputeLayout();
         }
     }
 
+    void CaelusElement::CommitLayout(HINSTANCE hInstance)
+    {
+        m_currentRect = m_futureRect;
+
+        if (!m_hwnd)
+        {
+            Spawn(hInstance);
+        }
+        else
+        {
+            SetWindowPos(
+                m_hwnd,
+                NULL,
+                m_currentRect.GetEdge(LEFT),
+                m_currentRect.GetEdge(TOP),
+                m_currentRect.GetSize(WIDTH),
+                m_currentRect.GetSize(HEIGHT),
+                SWP_NOZORDER
+            );
+        }
+
+        for (auto & child : m_children)
+        {
+            child.get()->CommitLayout(hInstance);
+        }
+    }
+
+    void CaelusElement::Spawn(HINSTANCE hInstance)
+    {
+        if (m_hwnd) MX_THROW("Element window already created!");
+        auto * winClassName = L"STATIC";
+        DWORD style = WS_CHILD | WS_VISIBLE;
+        switch (GetTextAlignH())
+        {
+        case LEFT: style |= ES_LEFT; break;
+        case ALL: style |= ES_CENTER; break;
+        case RIGHT: style |= ES_RIGHT; break;
+        }
+
+        m_hwnd = CreateWindow(
+            L"Caelus_ELEMENT",
+            mxi::Utf16String(GetLabel()).c_str(),
+            style,
+            m_currentRect.GetEdge(LEFT),
+            m_currentRect.GetEdge(TOP),
+            m_currentRect.GetSize(WIDTH),
+            m_currentRect.GetSize(HEIGHT),
+            m_parent ? m_parent->m_hwnd : NULL,
+            NULL,
+            hInstance,
+            NULL
+        );
+
+        if (!m_hwnd) MX_THROW("Failed to create element window!");
+
+        SetPropA(m_hwnd, "elem", this);
+
+        UpdateFont();
+    }
+
+    HFONT CaelusElement::GetHfont()
+    {
+        if (!m_hfont) UpdateFont();
+        return m_hfont;
+    }
+
+    void CaelusElement::UpdateFont()
+    {
+        auto face = GetFontFace();
+        auto size = GetFontSize();
+        auto italic = GetFontItalic();
+        auto weight = GetFontWeight();
+
+        static LOGFONT f;
+        auto const hdc = GetDC(m_hwnd);
+        f.lfHeight = size.toPixels(this, HEIGHT).value();
+        ReleaseDC(m_hwnd, hdc);
+        f.lfWeight = weight;
+        f.lfItalic = italic;
+        f.lfUnderline = 0;
+        f.lfStrikeOut = 0;
+        f.lfCharSet = DEFAULT_CHARSET;
+        memcpy(f.lfFaceName, mxi::Utf16String(face).data(), (LF_FACESIZE - 1) * sizeof(WCHAR));
+        if (m_hfont) DeleteObject(m_hfont);
+        m_hfont = CreateFontIndirect(&f);
+
+        //SendMessage(hwnd, WM_SETFONT, (WPARAM)m_hfont, 0); // Ignored
+    }
+
+    std::optional<int> CaelusElement::MeasureToPixels(Measure const * measure, Dimension const dim) const
+    {
+        switch (measure->unit)
+        {
+        case PX:
+            return (int)measure->value;
+
+        case EM:
+            return static_cast<int>(static_cast<double>(getFontHeight(m_hwnd)) * measure->value);
+
+        case PT:
+        {
+            auto hdc = GetDC(m_hwnd);
+            return MulDiv((int)measure->value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+        }
+
+        case PC:
+            if (m_futureRect.GetSize(dim))
+            {
+                return ((double)(m_futureRect.GetSize(dim))) * measure->value;
+            }
+            return std::nullopt;
+        }
+
+        MX_THROW("Unsupported unit for conversion to pixels.");
+    }
+
     // =-=-=-=-=-=-=-=-= Getters =-=-=-=-=-=-=-=-=
+
+#define CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(FUNC) \
+    auto const & CaelusElement::FUNC() const \
+    { \
+        auto elem = this; \
+        auto map = GetWindow()->GetClassMap(); \
+        while (elem) \
+        { \
+            auto const v = map.FUNC(this->m_name); \
+            if (v.has_value()) return v.value(); \
+            elem = this->m_parent; \
+        } \
+        MX_THROW(#FUNC " failed for element!"); \
+    }
+
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetBackgroundColor);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetFontFace);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetFontItalic);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetFontSize);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetFontWeight);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetLabel);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetTextAlignH);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetTextColor);
+
+#define CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_WITH_EDGE(FUNC) \
+    auto const & CaelusElement::FUNC(Edge const edge) const \
+    { \
+        auto elem = this; \
+        auto map = GetWindow()->GetClassMap(); \
+        while (elem) \
+        { \
+            auto const v = map.FUNC(edge, this->m_name); \
+            if (v.has_value()) return v; \
+            elem = this->m_parent; \
+        } \
+        MX_THROW(#FUNC " failed for element!"); \
+    }
+
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_WITH_EDGE(GetBorderWidthDef);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_WITH_EDGE(GetPaddingDef);
+    CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_WITH_EDGE(GetTether);
 
     CaelusElement * CaelusElement::FindElement(std::string_view const & name)
     {
@@ -590,18 +712,6 @@ namespace Caelus
             if (found) return found;
         }
         return nullptr;
-    }
-
-    Color const * CaelusElement::GetBackgroundColor() const noexcept
-    {
-        return GetWindow()->GetClassMap().GetBackgroundColor(m_name);
-        // TODO what about inherit from parent?
-    }
-
-    Measure const * CaelusElement::GetBorderWidthDef(Edge const edge) const
-    {
-        return GetWindow()->GetClassMap().GetBorderWidth(edge, m_name);
-        // TODO what about inherit from parent?
     }
 
     CaelusElement * CaelusElement::GetChild(size_t const n) noexcept
@@ -617,12 +727,6 @@ namespace Caelus
     HWND CaelusElement::GetHwnd() const noexcept
     {
         return m_hwnd;
-    }
-
-    Measure const * CaelusElement::GetPaddingDef(Edge const edge) const
-    {
-        return GetWindow()->GetClassMap().GetPadding(edge, m_name);
-        // TODO what about inherit from parent?
     }
 
     CaelusElement * CaelusElement::GetParent() noexcept
@@ -643,7 +747,7 @@ namespace Caelus
     {
         for (size_t i = 0; i < m_parent->m_children.size(); ++i)
         {
-            auto sibling = m_parent->m_children[i];
+            auto & sibling = m_parent->m_children[i];
             if (sibling.get() == this)
             {
                 if (i == 0 || i == m_parent->m_children.size() - 1)
@@ -655,12 +759,6 @@ namespace Caelus
             }
         }
         return m_parent;
-    }
-
-    Tether const * CaelusElement::GetTether(Edge const edge) const
-    {
-        return GetWindow()->GetClassMap().GetTether(edge, m_name);
-        // TODO what about inherit from parent?
     }
 
     CaelusWindow const * CaelusElement::GetWindow() const

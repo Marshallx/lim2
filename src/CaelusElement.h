@@ -13,46 +13,51 @@ namespace Caelus
 
     class CaelusElement
     {
+        friend Measure;
     public:
-        struct
-        {
-            HBRUSH GetBackgroundBrush() const noexcept;
-        } m_drawing;
-
-        CaelusElement(std::string_view const & name) : m_name(std::string{ name })
-            { if (name.empty()) MX_THROW("All elements require a unique name"); };
-
-        static void registerClass(HINSTANCE hInstance);
+        // Painting
+        static void Register(HINSTANCE hInstance);
         LRESULT paint(HWND hwnd, HDC hdc);
+        HBRUSH GetBackgroundBrush();
+        HFONT GetHfont();
+        HBRUSH GetBorderBrush();
+        void DrawBorder(HDC hdc);
 
+        // Element arrangement
+        CaelusElement(std::string_view const & name) : m_name(std::string{ name })
+        {
+            if (name.empty()) MX_THROW("All elements require a unique name");
+        };
         CaelusElement * FindElement(std::string_view const & name);
-        Color const * GetBackgroundColor() const noexcept;
-        CaelusElement * GetChild(size_t const i);
-        HWND GetHwnd() const noexcept;
-        Font GetFont() const;
-        CaelusElement * GetParent() noexcept;
-        CaelusElementType GetType() const;
-        std::string const & GetValue() const;
-        CaelusWindow const * GetWindow() const;
-
         CaelusElement * AppendChild(std::string_view const & name);
         CaelusElement * InsertChild(std::string_view const & name, size_t n);
         void Remove();
         void RemoveChild(size_t const n);
         void RemoveChildren();
+        void show();
+        void hide();
 
+        // Style getters
+        auto const & GetBackgroundColor() const;
+        CaelusElement * GetChild(size_t const i);
+        HWND GetHwnd() const noexcept;
+        CaelusElement * GetParent() noexcept;
+        CaelusElementType GetType() const;
+        std::string const & GetValue() const;
+        CaelusWindow const * GetWindow() const;
+
+        // Style setters
         void SetBackgroundColor(Color const & v);
         void SetBackgroundColor(std::string const & spec);
         void SetFontFace(std::string_view const & face);
-        void SetFontSize(Measure const & size);
-        void SetFontSize(std::string const & spec);
-        void SetFontStyle(FontStyle const & style);
+        void SetFontSize(std::string_view const & size);
+        void SetFontStyle(std::string_view const & style);
         void SetFontWeight(int const weight);
         void SetHeight(std::string const & spec);
-        void SetId(std::string_view const & v);
         void SetImage(HBITMAP v);
-        void SetLabel(std::string_view const & v);
-        void SetOpacity(uint8_t const v);
+        void SetLabel(std::string_view const & label);
+        void SetOpacity(uint8_t const opacity);
+        void SetOpacity(double const opacity);
         void SetPadding(Edge const edge, Measure const & v);
         void SetTextAlignH(Edge const v);
         void SetTextColor(Color const & v);
@@ -66,15 +71,12 @@ namespace Caelus
         void tether(Edge const myEdge, std::string_view const & otherId, Edge const otherEdge, Measure const & offset);
         void tether(Edge const myEdge, std::string const & spec);
 
-        void updateBackgroundBrush();
-        void updateFont();
-
-        void show();
-        void hide();
-
     protected:
         void Build();
+        void Spawn(HINSTANCE hInstance);
         void PrepareToComputeLayout();
+        void UpdateBackgroundBrush();
+        void UpdateFont();
 
         // Resolves as many coordinates as possible (single pass) and returns the number of unresolved coordinates/dimensions.
         size_t ComputeLayout();
@@ -84,17 +86,29 @@ namespace Caelus
         Resolved ComputeBorder(Edge const edge);
         Resolved ComputeNC(Edge const edge);
         Resolved ComputeSize(Dimension const dim);
+        std::optional<int> MeasureToPixels(Measure const * measure, Dimension const dim) const;
 
         // Move futureRect to currentRect and redraw everything
-        void CommitLayout();
+        void CommitLayout(HINSTANCE hInstance);
 
-        Measure const * GetBorderWidthDef(Edge const edge) const;
         static Tether const GetDefaultTether(Edge const edge);
-        Measure const * GetPaddingDef(Edge const edge) const;
+        HFONT GetHfont();
         CaelusElement * GetSibling(std::string_view const & name) const;
         CaelusElement * GetSibling(Edge const edge) const;
-        Measure const * GetSizeDef(Dimension const dim) const;
-        Tether const * GetTether(Edge const edge) const;
+
+        // Styles inherited from parent or classes
+        auto const & GetBorderColor() const;
+        auto const & GetBorderWidthDef(Edge const edge) const;
+        auto const & GetLabel() const;
+        auto const & GetFontFace() const;
+        auto const & GetFontItalic() const;
+        auto const & GetFontSize() const;
+        auto const & GetFontWeight() const;
+        auto const & GetPaddingDef(Edge const edge) const;
+        auto const & GetSizeDef(Dimension const dim) const;
+        auto const & GetTether(Edge const edge) const;
+        auto const & GetTextAlignH() const;
+        auto const & GetTextColor() const;
 
         std::vector<std::shared_ptr<CaelusElement>> m_children = {};
         CaelusClass * m_class = nullptr;
@@ -102,6 +116,7 @@ namespace Caelus
         CaelusElement * m_parent = nullptr;
         ResolvedRect m_currentRect;
         ResolvedRect m_futureRect;
+        HFONT m_hfont = NULL;
         HWND m_hwnd = 0;
 
     protected:

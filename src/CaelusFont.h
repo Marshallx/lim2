@@ -30,7 +30,6 @@ namespace Caelus
         std::optional<bool> m_italic;
         std::optional<Measure> m_size;
         std::optional<int> m_weight;
-        HFONT hfont = NULL;
 
     public:
         void SetColor(std::string_view const & color);
@@ -47,8 +46,6 @@ namespace Caelus
         auto const & GetItalic() const noexcept { return m_italic; };
         auto const & GetSize() const noexcept { return m_size; };
         auto const & GetWeight() const noexcept { return m_weight; };
-        HFONT GetHFont(HWND const hwnd);
-
     };
 
     int getFontHeight(HWND hwnd);

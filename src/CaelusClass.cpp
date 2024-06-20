@@ -8,11 +8,9 @@
 namespace Caelus
 {
 
-    // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
     CaelusClass * CaelusClassMap::GetClass(std::string_view const & name) const
     {
-        for (auto c : m_map)
+        for (auto const & c : m_map)
         {
             if (c.first == name) return c.second.get();
         }
@@ -31,109 +29,67 @@ namespace Caelus
         }
     }
 
-    Color const * CaelusClassMap::GetBackgroundColor(std::string_view const & name) const
-    {
-        auto chain = std::vector<CaelusClass *>{};
-        GetClassChain(name, chain);
-        for (auto const c : chain)
-        {
-            auto const p = c->GetBackgroundColor();
-            if (p) return p;
-        }
-        return nullptr;
+    // =-=-=-=-=-=-=-=-= ClassMap Getters =-=-=-=-=-=-=-=-=
+
+#define CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(FUNC) \
+    auto const & CaelusClassMap::FUNC(std::string_view const & name) const \
+    { \
+        auto chain = std::vector<CaelusClass *>{}; \
+        GetClassChain(name, chain); \
+        using T = decltype(((CaelusClass*)nullptr)->FUNC()); \
+        for (auto const c : chain) \
+        { \
+            auto const o = c->FUNC(); \
+            if (o.has_value()) return o; \
+        } \
+        static T const def{}; \
+        return def; \
     }
 
-    Measure const * CaelusClassMap::GetBorderWidth(Edge const edge, std::string_view const & name) const
-    {
-        auto chain = std::vector<CaelusClass *>{};
-        GetClassChain(name, chain);
-        for (auto const c : chain)
-        {
-            auto const p = c->GetBorderWidth(edge);
-            if (p) return p;
-        }
-        return nullptr;
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetBackgroundColor);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontFace);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontItalic);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontSize);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetFontWeight);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetLabel);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetTextAlignH);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION(GetTextColor);
+
+
+#define CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(FUNC, N) \
+    auto const & CaelusClassMap::FUNC(N const n, std::string_view const & name) const \
+    { \
+        auto chain = std::vector<CaelusClass *>{}; \
+        GetClassChain(name, chain); \
+        using T = decltype(((CaelusClass*)nullptr)->FUNC(n)); \
+        for (auto const c : chain) \
+        { \
+            auto const o = c->FUNC(n); \
+            if (o.has_value()) return o; \
+        } \
+        static T const def{}; \
+        return def; \
     }
 
-    Measure const * CaelusClassMap::GetPadding(Edge const edge, std::string_view const & name) const
-    {
-        auto chain = std::vector<CaelusClass *>{};
-        GetClassChain(name, chain);
-        for (auto const c : chain)
-        {
-            auto const p = c->GetPadding(edge);
-            if (p) return p;
-        }
-        return nullptr;
-    }
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetBorderColor, Edge);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetBorderWidthDef, Edge);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetPaddingDef, Edge);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetTether, Edge);
+    CAELUS_DEFINE_GET_CLASS_STYLE_FUNCTION_EX(GetSizeDef, Dimension);
 
-    Tether const * CaelusClassMap::GetTether(Edge const edge, std::string_view const & name) const
-    {
-        auto chain = std::vector<CaelusClass *>{};
-        GetClassChain(name, chain);
-        for (auto const c : chain)
-        {
-            auto const t = c->GetTether(edge);
-            if (t) return t;
-        }
-        return nullptr;
-    }
 
-    // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // =-=-=-=-=-=-=-=-= Class Setters =-=-=-=-=-=-=-=-=
 
     void CaelusClass::AddClassNames(std::string_view const & classes)
     {
         auto more = mxi::explode(classes);
         // Add classes in reverse order (priority order in source is RTL)
-        for (auto i = more.size() - 1; i>=0; --i)
+        for (auto i = more.size() - 1; i >= 0; --i)
         {
             mxi::trim(more[i]);
             if (std::find(m_classNames.begin(), m_classNames.end(), more[i]) != m_classNames.end()) continue;
-            m_classNames.push_back(std::string{ more[i]} );
+            m_classNames.push_back(std::string{ more[i] });
         }
-    }
-
-    Color const * CaelusClass::GetBackgroundColor() const
-    {
-        return m_backgroundColor.has_value() ? &m_backgroundColor.value() : nullptr;
-    }
-
-    Measure const * CaelusClass::GetBorderWidth(Edge const edge) const
-    {
-        if (edge > 4) MX_THROW("Invalid border edge");
-        return m_padding[edge].has_value() ? &m_padding[edge].value() : nullptr;
-    }
-
-    std::vector<std::string> const & CaelusClass::GetClassNames() const
-    {
-        return m_classNames;
-    }
-
-    CaelusElement const * CaelusClass::GetElement() const noexcept
-    {
-        return m_element;
-    }
-
-    std::string const & CaelusClass::GetName() const noexcept
-    {
-        return m_name;
-    }
-
-    std::string const & CaelusClass::GetParentName() const noexcept
-    {
-        return m_parentName;
-    }
-
-    Measure const * CaelusClass::GetPadding(Edge const edge) const
-    {
-        if (edge > 4) MX_THROW("Invalid padding edge");
-        return m_padding[edge].has_value() ? &m_padding[edge].value() : nullptr;
-    }
-
-    Tether const * CaelusClass::GetTether(Edge const edge) const
-    {
-        if (edge > 4) MX_THROW("Invalid tether edge");
-        return m_tethers[edge].has_value() ? &m_tethers[edge].value() : nullptr;
     }
 
     void CaelusClass::SetBackgroundColor(Color const & color)
@@ -151,101 +107,6 @@ namespace Caelus
         SetBackgroundColor(Color::Parse(color));
     }
 
-    void CaelusClass::SetContentAlignmentH(Edge const edge)
-    {
-        m_alignContentH = edge;
-    }
-
-    void CaelusClass::SetContentAlignmentV(Edge const edge)
-    {
-        m_alignContentV = edge;
-    }
-
-    void CaelusClass::SetElement(CaelusElement * element)
-    {
-        m_element = element;
-    }
-
-    void CaelusClass::SetElementType(std::string_view const & type)
-    {
-        if (type == "button") { m_elementType = BUTTON; return; }
-        if (type == "combobox") { m_elementType = COMBOBOX; return; }
-        if (type == "edit") { m_elementType = EDITBOX; return; }
-        if (type == "listbox") { m_elementType = LISTBOX; return; }
-        if (type == "checkbox") { m_elementType = CHECKBOX; return; }
-        if (type == "class") { m_elementType = CLASS; return; }
-        m_elementType = GENERIC;
-    }
-
-    void CaelusClass::SetFontColor(Color const & color)
-    {
-        if (!m_font.has_value()) m_font = Font{};
-        m_font.value().SetColor(color);
-    }
-
-    void CaelusClass::SetFontColor(std::string_view const & color)
-    {
-        if (!m_font.has_value()) m_font = Font{};
-        m_font.value().SetColor(color);
-    }
-
-    void CaelusClass::SetFontFace(std::string_view const & face)
-    {
-        if (!m_font.has_value()) m_font = Font{};
-        m_font.value().SetFace(face);
-    }
-
-    void CaelusClass::SetFontSize(std::string_view const & size)
-    {
-        SetFontSize(size);
-    }
-
-    void CaelusClass::SetFontStyle(std::string_view const & style)
-    {
-        if (!m_font.has_value()) m_font = Font{};
-        m_font.value().SetStyle(style);
-    }
-
-    void CaelusClass::SetFontWeight(std::string_view const & weight)
-    {
-        if (!m_font.has_value()) m_font = Font{};
-        m_font.value().SetWeight(weight);
-    }
-
-    void CaelusClass::SetHeight(std::string_view const & height)
-    {
-        m_size[HEIGHT] = Measure::Parse(height);
-    }
-
-    void CaelusClass::SetImagePath(std::filesystem::path const & path)
-    {
-        m_imagePath = path;
-    }
-
-    void CaelusClass::SetLabel(std::string_view const & v)
-    {
-        m_label = v;
-    }
-
-    void CaelusClass::SetOpacity(uint8_t const v)
-    {
-        m_opacity = v;
-    }
-
-    void CaelusClass::SetPadding(std::string_view const & padding, Edge const edge)
-    {
-        auto const m = Measure::Parse(padding);
-        if (edge == Edge::ALL)
-        {
-            static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
-            for (auto const edge : edges)
-            {
-                if (!m_padding[edge].has_value()) m_padding[edge] = m;
-            }
-        }
-        else m_padding[edge] = m;
-    }
-
     void CaelusClass::SetBorder(std::string const & border, Edge const edge)
     {
         auto toks = mxi::explode(border, " ");
@@ -255,7 +116,7 @@ namespace Caelus
 
         for (size_t i = 0; i < toks.size(); ++i)
         {
-            auto tok = toks[i];
+            auto & tok = toks[i];
             if (tok.empty()) continue;
             if (tok == "rgb(")
             {
@@ -329,6 +190,88 @@ namespace Caelus
         else m_borderRadius[corner] = m;
     }
 
+    void CaelusClass::SetElement(CaelusElement * element)
+    {
+        m_element = element;
+    }
+
+    void CaelusClass::SetElementType(std::string_view const & type)
+    {
+        if (type == "button") { m_elementType = BUTTON; return; }
+        if (type == "combobox") { m_elementType = COMBOBOX; return; }
+        if (type == "edit") { m_elementType = EDITBOX; return; }
+        if (type == "listbox") { m_elementType = LISTBOX; return; }
+        if (type == "checkbox") { m_elementType = CHECKBOX; return; }
+        if (type == "class") { m_elementType = CLASS; return; }
+        m_elementType = GENERIC;
+    }
+
+    void CaelusClass::SetFontFace(std::string_view const & face)
+    {
+        m_fontFace = face;
+    }
+
+    void CaelusClass::SetFontSize(std::string_view const & size)
+    {
+        m_fontSize = Measure::Parse(size);
+    }
+
+    void CaelusClass::SetFontStyle(std::string_view const & style)
+    {
+        if (style == "italic") m_fontItalic = true;
+        else if (style == "inherit") m_fontItalic.reset();
+        else m_fontItalic = false;
+    }
+
+    void CaelusClass::SetFontWeight(std::string_view const & weight)
+    {
+        if (weight == "inherit") m_fontWeight.reset();
+        else if (weight == "thin") m_fontWeight = THIN;
+        else if (weight == "extralight") m_fontWeight = EXTRALIGHT;
+        else if (weight == "light") m_fontWeight = LIGHT;
+        else if (weight == "regular") m_fontWeight = REGULAR;
+        else if (weight == "medium") m_fontWeight = MEDIUM;
+        else if (weight == "semibold") m_fontWeight = SEMIBOLD;
+        else if (weight == "bold") m_fontWeight = BOLD;
+        else if (weight == "extrabold") m_fontWeight = EXTRABOLD;
+        else if (weight == "black") m_fontWeight = BLACK;
+        else m_fontWeight = atoi(std::string(weight).c_str());
+    }
+
+    void CaelusClass::SetHeight(std::string_view const & height)
+    {
+        m_size[HEIGHT] = Measure::Parse(height);
+    }
+
+    void CaelusClass::SetImagePath(std::filesystem::path const & path)
+    {
+        m_imagePath = path;
+    }
+
+    void CaelusClass::SetLabel(std::string_view const & v)
+    {
+        m_label = v;
+    }
+
+    void CaelusClass::SetOpacity(uint8_t const v)
+    {
+        m_opacity = v;
+    }
+
+    void CaelusClass::SetPadding(std::string_view const & padding, Edge const edge)
+    {
+        auto const m = Measure::Parse(padding);
+        if (edge == Edge::ALL)
+        {
+            static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
+            for (auto const edge : edges)
+            {
+                if (!m_padding[edge].has_value()) m_padding[edge] = m;
+            }
+        }
+        else m_padding[edge] = m;
+    }
+
     void CaelusClass::SetParentName(std::string_view const & v)
     {
         m_parentName = v.empty() ? std::string{"window"} : std::string{v};
@@ -372,7 +315,7 @@ namespace Caelus
         if (!name.empty())
         {
             // Normal tether
-            otherEdge = edgeFromKeyword(sedge);
+            otherEdge = keywordToEdge(sedge);
             if (isHEdge(otherEdge) != isHEdge(otherEdge)) MX_THROW(msgEdge);
             if (sop.empty() && !soffset.empty())  MX_THROW(std::format(msgFormat, spec).c_str());
             if (sop == "-") offset = -offset;
@@ -396,6 +339,31 @@ namespace Caelus
         SetTether(myEdge, name, otherEdge, { offset, unit });
     }
 
+    void CaelusClass::SetTextAlignH(Edge const edge)
+    {
+        m_alignTextH = edge;
+    }
+
+    void CaelusClass::SetTextAlignV(Edge const edge)
+    {
+        m_alignTextV = edge;
+    }
+
+    void CaelusClass::SetTextColor(Color const & color)
+    {
+        m_textColor = color;
+    }
+
+    void CaelusClass::SetTextColor(std::string_view const & color)
+    {
+        m_textColor.emplace(Color::Parse(color));
+    }
+
+    void CaelusClass::SetTextColor(uint32_t const color)
+    {
+        m_textColor = { color };
+    }
+
     void CaelusClass::SetValue(std::string_view const & v)
     {
         m_value = v;
@@ -413,4 +381,5 @@ namespace Caelus
         if (width == "auto") m_size[WIDTH].reset();
         else m_size[WIDTH] = Measure::Parse(width);
     }
+
 }

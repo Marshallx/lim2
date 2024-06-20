@@ -150,7 +150,7 @@ namespace Caelus
             if (source[loc.pos] == ']')
             {
                 name = source.substr(start, loc.pos);
-                if (classes.contains(name.c_str()))
+                if (classes.m_map.contains(name.c_str()))
                 {
                     Error(std::format("Duplicate {} name \"{}\"", name.starts_with('.') ? "class" : "element", name));
                 }
@@ -160,7 +160,7 @@ namespace Caelus
             if (source[loc.pos] == ';') Expected(']');
         }
         auto cp = std::make_shared<CaelusClass>(CaelusClass{name});
-        classes[name] = cp;
+        classes.m_map[name] = cp;
         auto c = cp.get();
         for (;; NextChar())
         {
@@ -178,17 +178,17 @@ namespace Caelus
             try
             {
                 if (key == "parent") c->SetParentName(value);
-                else if (key == "background-color" || key == "bgcolor") c->SetBackgroundColor(value);
+                else if (key == "background-color") c->SetBackgroundColor(value);
                 else if (key == "border") c->SetBorder(value);
                 else if (key == "border-bottom") c->SetBorder(value, BOTTOM);
                 else if (key == "border-left") c->SetBorder(value, LEFT);
                 else if (key == "border-right") c->SetBorder(value, RIGHT);
                 else if (key == "border-top") c->SetBorder(value, TOP);
                 else if (key == "bottom") c->SetTether(BOTTOM, value);
-                else if (key == "class" || key == "classes") c->AddClassNames(value);
-                else if (key == "font-color" || key == "fontcolor" || key == "color" || key == "fgcolor" || key == "text-color") c->SetFontColor(value);
-                else if (key == "font-face" || key == "fontface") c->SetFontFace(value);
-                else if (key == "font-size" || key == "fontsize") c->SetFontSize(value);
+                else if (key == "class") c->AddClassNames(value);
+                else if (key == "text-color" || key == "color") c->SetTextColor(value);
+                else if (key == "font-face") c->SetFontFace(value);
+                else if (key == "font-size") c->SetFontSize(value);
                 else if (key == "height") c->SetHeight(value);
                 else if (key == "label") c->SetLabel(value);
                 else if (key == "left") c->SetTether(LEFT, value);
