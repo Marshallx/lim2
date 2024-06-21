@@ -22,7 +22,6 @@ namespace mx
 
     private:
         static void BuildGui();
-        static void CreateQueryBar();
         static CaelusWindow * gui;
         static Database db;
     };

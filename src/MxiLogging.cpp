@@ -7,7 +7,7 @@ namespace mxi
         // TODO
     }
 
-    void log(LogLevel level, std::string_view const & message)
+    void log(LogLevel const & level, std::string_view const & message)
     {
         // TODO
     }

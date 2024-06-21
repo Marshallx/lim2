@@ -1,28 +1,36 @@
 #pragma once
 
 #include "CaelusClass.h"
+#include "CaelusElement.h"
 
 namespace Caelus
 {
-    class CaelusElement;
+    constexpr static auto const kWindowClass = L"Caelus_WINDOW";
+    LRESULT CALLBACK CaelusWindow_WndProc(HWND, UINT, WPARAM, LPARAM);
 
-    class CaelusWindow
+    class CaelusWindow : public CaelusElement
     {
     public:
         CaelusWindow();
         CaelusWindow(std::filesystem::path const & file);
         CaelusWindow(std::string_view const & source);
         CaelusClassMap const & GetClassMap() const;
-        int Start(HINSTANCE hInstance, int const nCmdShow);
+        static void Register(HINSTANCE hInstance);
+        int Start(HINSTANCE hInstance, int const nCmdShow, int const x = CW_USEDEFAULT, int const y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
         void IgnoreErrors(bool const ignore = true);
-        void SetTitle(std::string_view const & title);
+        void SetResizable(bool const resizable = true);
 
     private:
         CaelusWindow(CaelusWindow const &) = delete;
         void SetDefaults();
+        void BuildAll();
+        void FitToOuter();
+        void FitToInner();
         bool m_throwOnUnresolved = true;
         CaelusClassMap m_definedClasses = {};
-        CaelusElement * m_client = nullptr;
-        HWND m_hwnd;
+        bool m_resizable = false;
+        HWND m_outerHwnd = 0;
+
     };
+
 }

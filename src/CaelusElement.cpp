@@ -1,11 +1,12 @@
 #include "MxiLogging.h"
 #include "MxiUtils.h"
 
+#include "CaelusWindow.h"
+
 #include "CaelusElement.h"
 
 namespace Caelus
 {
-
     namespace
     {
 
@@ -86,23 +87,23 @@ namespace Caelus
         */
     }
 
-    // =-=-=-=-=-=-=-=-= Getters =-=-=-=-=-=-=-=-=
+    // =-=-=-=-=-=-=-=-= Style getters =-=-=-=-=-=-=-=-=
 
 #define CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(FUNC) \
-    auto const & CaelusElement::FUNC() const \
+    decltype(((CaelusClass*)nullptr)->FUNC()) CaelusElement::FUNC() const \
     { \
         auto elem = this; \
         auto const & map = GetWindow()->GetClassMap(); \
         while (elem) \
         { \
             std::vector<CaelusClass *> cs = {}; \
-            map.GetClassChain(m_name, cs); \
+            map.GetClassChain(elem->m_name, cs); \
             for (auto const c : cs) \
             { \
                 auto const & v = c->FUNC(); \
                 if (v.has_value()) return v; \
             } \
-            elem = this->m_parent; \
+            elem = elem->m_parent; \
         } \
         using T = decltype(((CaelusClass*)nullptr)->FUNC()); \
         static T def{}; \
@@ -119,20 +120,20 @@ namespace Caelus
     CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION(GetTextColor);
 
 #define CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_EX(FUNC, PARAMT) \
-    auto const & CaelusElement::FUNC(PARAMT const param) const \
+    decltype(((CaelusClass*)nullptr)->FUNC(PARAMT{})) CaelusElement::FUNC(PARAMT const param) const \
     { \
         auto elem = this; \
         auto const & map = GetWindow()->GetClassMap(); \
         while (elem) \
         { \
             std::vector<CaelusClass *> cs = {}; \
-            map.GetClassChain(m_name, cs); \
+            map.GetClassChain(elem->m_name, cs); \
             for (auto const c : cs) \
             { \
                 auto const & v = c->FUNC(param); \
                 if (v.has_value()) return v; \
             } \
-            elem = this->m_parent; \
+            elem = elem->m_parent; \
         } \
         using T = decltype(((CaelusClass*)nullptr)->FUNC(param)); \
         static T def{}; \
@@ -144,6 +145,43 @@ namespace Caelus
     CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_EX(GetPaddingDef, Edge);
     CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_EX(GetTether, Edge);
     CAELUS_DEFINE_GET_INHERITABLE_ELEMENT_STYLE_FUNCTION_EX(GetSizeDef, Dimension);
+
+    Tether const CaelusElement::GetDefaultTether(Edge const edge)
+    {
+        return { ".", ~edge, {0, PX} };
+    }
+
+
+    // =-=-=-=-=-=-=-=-= Style setters =-=-=-=-=-=-=-=-=
+
+    // TODO rest of the setters
+
+    void CaelusElement::SetLabel(std::string_view const & label)
+    {
+        m_class->SetLabel(label);
+    }
+
+    void CaelusElement::SetSize(std::string_view const & width, std::string_view const & height)
+    {
+        // TODO overwrite CaelusClass size def
+        // TODO for "window", resize the outer window too
+    }
+
+
+    // =-=-=-=-=-=-=-=-= Element arrangement =-=-=-=-=-=-=-=-=
+
+    CaelusElement::CaelusElement(std::string_view const & name) : m_name(std::string{ name })
+    {
+        if (name.empty()) MX_THROW("All elements require a unique name");
+    };
+
+    CaelusElement * CaelusElement::AppendChild(std::string_view const & name)
+    {
+        if (name.find_first_of(". ") != std::string::npos) MX_THROW("Element names cannot contain '.' or ' '.");
+        auto ep = std::make_shared<CaelusElement>(CaelusElement{ name });
+        m_children.push_back(ep);
+        return ep.get();
+    }
 
     CaelusElement * CaelusElement::FindElement(std::string_view const & name)
     {
@@ -161,14 +199,16 @@ namespace Caelus
         return (m_children.size() > n) ? m_children[n].get() : nullptr;
     }
 
-    Tether const CaelusElement::GetDefaultTether(Edge const edge)
-    {
-        return { ".", ~edge, {0, PX} };
-    }
-
     HWND CaelusElement::GetHwnd() const noexcept
     {
         return m_hwnd;
+    }
+
+    CaelusElement * CaelusElement::InsertChild(std::string_view const & name, size_t n)
+    {
+        auto ep = std::make_shared<CaelusElement>(CaelusElement{ name });
+        m_children.insert(std::next(m_children.begin(), n), ep);
+        return ep.get();
     }
 
     CaelusElement * CaelusElement::GetParent() noexcept
@@ -210,23 +250,6 @@ namespace Caelus
         return (CaelusWindow *)window;
     }
 
-    // =-=-=-=-=-=-=-=-= Setters =-=-=-=-=-=-=-=-=
-
-    CaelusElement * CaelusElement::AppendChild(std::string_view const & name)
-    {
-        if (name.find_first_of(". ") != std::string::npos) MX_THROW("Element names cannot contain '.' or ' '.");
-        auto ep = std::make_shared<CaelusElement>(CaelusElement{ name });
-        m_children.push_back(ep);
-        return ep.get();
-    }
-
-    CaelusElement * CaelusElement::InsertChild(std::string_view const & name, size_t n)
-    {
-        auto ep = std::make_shared<CaelusElement>(CaelusElement{ name });
-        m_children.insert(std::next(m_children.begin(), n), ep);
-        return ep.get();
-    }
-
     void CaelusElement::Remove()
     {
         RemoveChildren();
@@ -251,6 +274,9 @@ namespace Caelus
         m_children.clear();
     }
 
+
+    // =-=-=-=-=-=-=-=-= Layout and painting =-=-=-=-=-=-=-=-=
+
     void CaelusElement::Register(HINSTANCE hInstance)
     {
         WNDCLASSEXW wcex = {
@@ -262,7 +288,7 @@ namespace Caelus
             .hInstance = hInstance,
             .hCursor = LoadCursor(nullptr, IDC_ARROW),
             .hbrBackground = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF)),
-            .lpszClassName = L"Caelus_ELEMENT",
+            .lpszClassName = kElementClass,
         };
         RegisterClassExW(&wcex);
     }
@@ -467,7 +493,7 @@ namespace Caelus
             case SS_ICON:
             {
                 const WCHAR * name = cs->lpszName;
-                HICON hIcon;
+                auto hIcon = HICON{};
 
                 if (name && name[0] == 0xffff)
                 {
@@ -568,8 +594,6 @@ namespace Caelus
         return lResult;
     }
 
-    // =-=-=-=-=-=-=-=-= Layout =-=-=-=-=-=-=-=-=
-
     void CaelusElement::Build()
     {
         auto window = GetWindow();
@@ -581,6 +605,7 @@ namespace Caelus
             if (c->GetParentName() != m_name) continue;
             auto e = AppendChild(c->GetName());
             c->SetElement(e);
+            e->m_class = c;
             e->m_parent = this;
             e->Build();
         }
@@ -673,7 +698,11 @@ namespace Caelus
     {
         if (m_futureRect.HasPadding(edge)) return RESOLVED;
         auto const & paddingDef = GetPaddingDef(edge);
-        if (!paddingDef.has_value()) return RESOLVED;
+        if (!paddingDef.has_value())
+        {
+            m_futureRect.SetPadding(edge, 0);
+            return RESOLVED;
+        }
         auto paddingOpt = MeasureToPixels(paddingDef.value(), edgeToDimension(edge));
         if (!paddingOpt.has_value()) return UNRESOLVED;
         m_futureRect.SetPadding(edge, paddingOpt.value());
@@ -734,13 +763,13 @@ namespace Caelus
         }
     }
 
-    void CaelusElement::CommitLayout(HINSTANCE hInstance)
+    void CaelusElement::CommitLayout(HINSTANCE hInstance, HWND outerWindow)
     {
         m_currentRect = m_futureRect;
 
         if (!m_hwnd)
         {
-            Spawn(hInstance);
+            Spawn(hInstance, outerWindow);
         }
         else
         {
@@ -761,10 +790,9 @@ namespace Caelus
         }
     }
 
-    void CaelusElement::Spawn(HINSTANCE hInstance)
+    void CaelusElement::Spawn(HINSTANCE hInstance, HWND outerWindow)
     {
         if (m_hwnd) MX_THROW("Element window already created!");
-        auto * winClassName = L"STATIC";
         DWORD style = WS_CHILD | WS_VISIBLE;
         switch (GetTextAlignH().value())
         {
@@ -775,14 +803,14 @@ namespace Caelus
 
         auto const & label = GetLabel();
         m_hwnd = CreateWindow(
-            L"Caelus_ELEMENT",
+            kElementClass,
             mxi::Utf16String(label.value()).c_str(),
             style,
             m_currentRect.GetEdge(LEFT),
             m_currentRect.GetEdge(TOP),
             m_currentRect.GetSize(WIDTH),
             m_currentRect.GetSize(HEIGHT),
-            m_parent ? m_parent->m_hwnd : NULL,
+            m_parent ? m_parent->m_hwnd : outerWindow,
             NULL,
             hInstance,
             NULL

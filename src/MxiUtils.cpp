@@ -60,30 +60,6 @@ namespace mxi
         WritePrivateProfileString(section16.c_str(), key16.c_str(), value16.c_str(), path.wstring().c_str());
     }
 
-    std::vector<std::string> explode(std::string_view const & s, std::string_view const & delim)
-    {
-        auto vs = std::vector<std::string>{};
-        auto pos = size_t{};
-        for (auto fd = size_t{ 0 }; (fd = s.find(delim, pos)) != std::string::npos; pos = fd + delim.size())
-        {
-            vs.emplace_back(s.data() + pos, s.data() + fd);
-        }
-        vs.emplace_back(s.data() + pos, s.data() + s.size());
-        return vs;
-    }
-
-    std::string implode(std::vector<std::string> const & vs, std::string_view const & delim)
-    {
-        auto s = std::string{};
-        for (auto const & v : vs)
-        {
-            s.append(v);
-            s.append(delim);
-        }
-        s.pop_back();
-        return s;
-    }
-
     std::ostringstream formatError(std::string_view const & message, std::source_location const && source)
     {
         auto oss = std::ostringstream{};
@@ -209,16 +185,15 @@ namespace mxi
         MX_THROW(std::format("JSON parse error: Unexpected end of input at position {}.", *cchParsed - 1));
     }
 
-    void trim(std::string & str)
+    [[nodiscard]] std::string_view trim(std::string_view const & str)
     {
         static constexpr auto kWhitespace = " \t\r\n";
         auto const start = str.find_first_not_of(kWhitespace);
         auto const end = str.find_last_not_of(kWhitespace);
         if (start != std::string::npos)
         {
-            str.erase(end + 1);
-            str.erase(0, start);
+            return str.substr(start, (end - start) + 1);
         }
-        else str.clear();
+        else return {};
     }
 }

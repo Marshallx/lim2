@@ -7,8 +7,8 @@ background-color=#9CD6E4
 
 [querybar]
 class=alice
-left=outer>left
-right=outer>right
+left=window.left
+right=window.right
 height=5em
 
 [searchbox]

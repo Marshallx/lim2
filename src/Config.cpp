@@ -57,11 +57,11 @@ namespace mx
         showSetInventoryRecords = mxi::ReadIniStr(file, "Config", "ShowSetInventoryRecords", "0") == "1";
 
         v = mxi::ReadIniStr(file, "Config", "FilterBySets", "");
-        filterBySets = mxi::explode(v);
+        filterBySets = mxi::explode<std::string>(v);
 
 
         v = mxi::ReadIniStr(file, "Config", "FilterByParts", "");
-        filterByParts = mxi::explode(v);
+        filterByParts = mxi::explode<std::string>(v);
     }
 
     void Config::Save()

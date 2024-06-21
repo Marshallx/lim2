@@ -24,13 +24,22 @@ namespace Caelus
 
     void CaelusParser::Error(std::string_view const & msg) const
     {
-        MX_THROW(std::format("Caelus parse error at {},{}: {}", loc.line, loc.col, msg));
+        MX_THROW(std::format("Caelus parse error at {},{}: {}", lineno, col, msg));
     }
 
     void CaelusParser::Expect(char const expected) const
     {
-        EoiCheck(expected);
-        if (source[loc.pos] == expected) return;
+        switch (expected)
+        {
+        case 0:
+        case '\r':
+        case '\n':
+        case ';':
+            break;
+        default:
+            EoiCheck(expected);
+        }
+        if (Peek() == expected) return;
         Expected(expected);
     }
 
@@ -41,141 +50,141 @@ namespace Caelus
 
     void CaelusParser::Expected(char const expected) const
     {
-        Error(std::format("Expected '{}'", expected));
+        if (expected) Error(std::format("Expected '{}'", expected));
+        Error("Expected end of line (or ';')");
     }
 
+    /*
     void CaelusParser::EoiCheck(std::string_view const & expected) const
     {
         if (loc.pos < source.size()) return;
         Error(std::format("Unexpected end of input. Expected {}", expected));
     }
+    */
 
     void CaelusParser::EoiCheck(char const expected) const
     {
-        if (loc.pos < source.size()) return;
-        Error(std::format("Unexpected end of input. Expected '{}'", expected));
-    }
-
-    void CaelusParser::NextChar()
-    {
-        ++loc.pos;
-        ++loc.col;
+        switch (Peek())
+        {
+        case 0:
+        case ';':
+        case '\r':
+        case '\n':
+            Error(std::format("Unexpected end of input. Expected '{}'", expected));
+        }
     }
 
     char CaelusParser::Peek() const
     {
-        if (loc.pos >= source.size()) return 0;
-        return source[loc.pos];
+        if (col >= linetext.size()) return 0;
+        return linetext[col];
     }
 
     bool CaelusParser::IsWhitespace() const
     {
-        return isWhitespace(source[loc.pos]);
+        return isWhitespace(Peek());
     }
 
-    void CaelusParser::EatWhitespace(bool const eatLF)
+    void CaelusParser::EatWhitespace()
     {
-        while (loc.pos < source.size())
+        for(;;)
         {
-            switch (source[loc.pos])
+            switch (Peek())
             {
+            case ';':
+                col = linetext.size();
+                return;
+            case 0:
             case '\n':
-                if (!eatLF) return;
-                ++loc.pos;
-                ++loc.line;
-                loc.col = 1;
-                continue;
+                ++col;
+                return;
             case ' ':
             case '\t':
             case '\r':
-                NextChar();
+                ++col;
                 continue;
+            default:
+                return;
             }
-            break;
         }
     }
 
-    void CaelusParser::EatComments()
+    void CaelusParser::NextLine()
     {
-        while (loc.pos < source.size())
+        linetext = lines[lineno];
+        ++lineno;
+        col = 0;
+    }
+
+    CaelusParser::CaelusParser(std::string_view const & source, CaelusClassMap & classes)
+    {
+        lines = mxi::explode(source, "\n");
+        while(lineno<lines.size())
         {
+            NextLine();
             EatWhitespace();
-            if (loc.pos >= source.size()) return;
-            if (source[loc.pos] == ';')
+            switch (Peek())
             {
-                while (loc.pos < source.size())
-                {
-                    if (source[loc.pos] == '\n')
-                    {
-                        ++loc.pos;
-                        ++loc.line;
-                        loc.col = 1;
-                        break;
-                    }
-                    NextChar();
-                }
+            case 0:
                 continue;
+            case '[':
+                // New section
+                ParseSection(classes);
             }
-            NextChar();
-            return;
-        }
-    }
-
-    CaelusParser::CaelusParser(std::string_view const & source, CaelusClassMap & classes) : source(source)
-    {
-        while (loc.pos < source.size())
-        {
-            EatComments();
-            if (loc.pos >= source.size()) return;
-            ParseSection(classes);
         }
     };
 
     void CaelusParser::ParseSection(CaelusClassMap & classes)
     {
         Expect('[');
-        NextChar();
-        EatWhitespace();
+        ++col;
 
         // Read section name
         auto name = std::string{};
-        auto start = loc.pos;
-        for(;; NextChar())
+        auto start = col;
+        EatWhitespace();
+        for(;; ++col)
         {
             EoiCheck(']');
             if (IsWhitespace())
             {
-                EatWhitespace(false);
+                EatWhitespace();
                 Expect(']');
             }
-            if (source[loc.pos] == ']')
+            if (Peek() != ']') continue;
+            name = linetext.substr(start, col - 1);
+            if (classes.m_map.contains(name.c_str()))
             {
-                name = source.substr(start, loc.pos);
-                if (classes.m_map.contains(name.c_str()))
-                {
-                    Error(std::format("Duplicate {} name \"{}\"", name.starts_with('.') ? "class" : "element", name));
-                }
-                NextChar();
-                break;
+                Error(std::format("Duplicate {} name \"{}\"", name.starts_with('.') ? "class" : "element", name));
             }
-            if (source[loc.pos] == ';') Expected(']');
+            ++col;
+            break;
         }
+        EatWhitespace();
+        Expect(0);
         auto cp = std::make_shared<CaelusClass>(CaelusClass{name});
         classes.m_map[name] = cp;
         auto c = cp.get();
-        for (;; NextChar())
+        if (!name.starts_with('.')) c->SetParentName("window");
+
+        while (lineno < lines.size())
         {
-            EatComments();
-            if (loc.pos >= source.size()) return;
-            if (source[loc.pos] == '[') return;
-            auto keyStart = loc;
-            auto const key = ParseKey();
-            EatComments();
+            NextLine();
+            EatWhitespace();
+            switch (Peek())
+            {
+            case 0: continue;
+            case '[': return;
+            }
+            auto saveCol = col;
+            auto const key = mxi::trim(ParseKey());
             Expect('=');
-            NextChar();
-            EatComments();
-            auto valStart = loc;
-            auto const value = ParseValue();
+            ++col;
+            EatWhitespace();
+            saveCol = col;
+            auto const value = mxi::trim(ParseValue());
+            EatWhitespace();
+            Expect(0);
             try
             {
                 if (key == "parent") c->SetParentName(value);
@@ -211,7 +220,7 @@ namespace Caelus
             }
             catch (std::exception const & err)
             {
-                loc = keyStart;
+                col = saveCol;
                 Error(std::format("Error processing property \"{}\"=\"{}\" - {}", key, value, err.what()));
             }
         }
@@ -219,73 +228,38 @@ namespace Caelus
 
     std::string_view CaelusParser::ParseKey()
     {
-        auto const start = loc.pos;
-        for (;; NextChar())
+        auto const start = col;
+        for (;; ++col)
         {
-            EoiCheck("a property name");
-            if (source[loc.pos] != '-' && (source[loc.pos] < 'a' || source[loc.pos] > 'z'))
+            switch (Peek())
             {
-                return { source.begin() + start, source.begin() + loc.pos };
-            }
-        }
-    }
-
-    std::string CaelusParser::ParseValue()
-    {
-        auto oss = std::ostringstream{};
-        bool const quoted = source[loc.pos] == '"';
-        if (quoted) NextChar();
-        for (;; NextChar())
-        {
-            EoiCheck("a property value");
-            switch (source[loc.pos])
-            {
-            case '\r':
-            case '\n':
+            case 0:
             case ' ':
             case '\t':
-            case '}':
-            case '=':
+            case '\r':
+            case '\n':
             case ';':
-                if (!quoted)
-                {
-                    NextChar();
-                    return oss.str();
-                }
-                if (source[loc.pos] == '\r' || source[loc.pos] == '\n') Error("Unterminated string");
-                oss << source[loc.pos];
-                continue;
-
-            case '"':
-                if (!quoted) Error("Unexpected '\"' in property value");
-                NextChar();
-                return oss.str();
-
-            case ('\\'):
-                NextChar();
-                EoiCheck("an escape sequence");
-                switch (source[loc.pos])
-                {
-                case '"':  oss << '"'; continue;
-                case '\\': oss << '\\'; continue;
-                case 'b': oss << '\b'; continue;
-                case 'f': oss << '\f'; continue;
-                case 'n': oss << '\n'; continue;
-                case 'r': oss << '\r'; continue;
-                case 't': oss << '\t'; continue;
-                case 'u':
-                    // TODO
-                    [[fallthrough]];
-                default:
-                    Error(std::format("Unrecognized escape sequence \\{}", source[loc.pos]));
-                }
-                MX_THROW("Unreachable");
-
-            default:
-                oss << source[loc.pos];
-                continue;
+                Expect('=');
+            case '=':
+                return { linetext.begin() + start, linetext.begin() + col };
             }
-            MX_THROW("Unreachable");
         }
     }
+
+    std::string_view CaelusParser::ParseValue()
+    {
+        auto const start = col;
+        for (;; ++col)
+        {
+            switch (Peek())
+            {
+            case 0:
+            case '\r':
+            case '\n':
+            case ';':
+                return { linetext.begin() + start, linetext.begin() + col };
+            }
+        }
+    }
+
 }

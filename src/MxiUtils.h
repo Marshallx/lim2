@@ -24,13 +24,35 @@ namespace mxi
 
     std::string create_guid();
 
-    // Split a string into a vector of strings.
-    std::vector<std::string> explode(std::string_view const & s, std::string_view const & delim = ",");
+    // Split a string into a vector of string_views (default) or strings (use explode<std::string>()).
+    template<typename S = std::string_view>
+    std::vector<S> explode(std::string_view const & s, std::string_view const & delim = ",")
+    {
+        auto vs = std::vector<S>{};
+        auto pos = size_t{};
+        for (auto fd = size_t{ 0 }; (fd = s.find(delim, pos)) != std::string::npos; pos = fd + delim.size())
+        {
+            vs.emplace_back(s.data() + pos, s.data() + fd);
+        }
+        vs.emplace_back(s.data() + pos, s.data() + s.size());
+        return vs;
+    }
+
+    // Join a vector of strings (or string_views) into a single string.
+    template<typename S>
+    std::string implode(std::vector<S> const & vs, std::string_view const & delim = ",")
+    {
+        auto s = std::string{};
+        for (auto const & v : vs)
+        {
+            s.append(v);
+            s.append(delim);
+        }
+        s.pop_back();
+        return s;
+    }
 
     std::ostringstream formatError(std::string_view const & message, std::source_location const && source = {});
-
-    // Join a vector of strings into a single string.
-    std::string implode(std::vector<std::string> const & v, std::string_view const & delim = ",");
 
     // Check if a character requires escaping for JSON.
     bool json_escape_needed(unsigned char const c);
@@ -44,7 +66,7 @@ namespace mxi
     // Unescape a JSON string. Must start and end with quotemarks. Ignores characters after closing quotemark, optionally returns number of characters parsed from source.
     std::string json_unescape_string(std::string_view const & s, size_t * cchParsed);
 
-    // Remove whitespace ( \t\r\n) from both ends of string. In place.
-    void trim(std::string & str);
+    // Gets the portion of the string sans leading and trailing whitespace ( \t\r\n)
+    [[nodiscard]] std::string_view trim(std::string_view const & str);
 
 }

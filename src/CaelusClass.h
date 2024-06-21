@@ -59,7 +59,7 @@ namespace Caelus
         void SetBackgroundColor(Color const & color);
         void SetBackgroundColor(std::string_view const & color);
         void SetBackgroundColor(uint32_t const color);
-        void SetBorder(std::string const & spec, Edge const edge = Edge::ALL_EDGES);
+        void SetBorder(std::string_view const & spec, Edge const edge = Edge::ALL_EDGES);
         void SetBorderColor(Color const & color, Edge const edge = Edge::ALL_EDGES );
         void SetBorderColor(std::string_view const & color, Edge const edge = Edge::ALL_EDGES);
         void SetBorderColor(uint32_t const color, Edge const edge = Edge::ALL_EDGES);

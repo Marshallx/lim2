@@ -63,6 +63,9 @@
     <ClInclude Include="src\CaelusMeasure.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Caelus.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Config.cpp">
@@ -108,6 +111,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\CaelusMeasure.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Caelus.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

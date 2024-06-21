@@ -145,6 +145,15 @@ namespace Caelus
         MX_THROW("Unresolved edge");
     }
 
+    int ResolvedRect::GetNC(Edge const edge) const
+    {
+        if (m_padd[edge].has_value() && m_bord[edge].has_value())
+        {
+            return m_padd[edge].value() + m_bord[edge].value();
+        }
+        MX_THROW("Unresolved padding");
+    }
+
     int ResolvedRect::GetPadding(Edge const edge) const
     {
         if (m_padd[edge].has_value()) return m_padd[edge].value();

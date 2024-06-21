@@ -2,6 +2,8 @@
 #include "Config.h"
 #include "MxiUtils.h"
 
+#include "Caelus.h"
+
 #include "Limb.h"
 
 namespace mx
@@ -21,6 +23,7 @@ namespace mx
         Config::Load();
         db.Open(GetRelPath("inventory.sqlite"));
         db.GetVersion();
+        Caelus::Init(hInstance);
         BuildGui();
         auto const exitcode = gui->Start(hInstance, nCmdShow);
         Config::Save();
@@ -29,7 +32,7 @@ namespace mx
 
     void Limb::BuildGui()
     {
-        gui = new CaelusWindow(GetRelPath("resource\\search.Caelus"));
-        gui->SetTitle("Lego Inventory Manager 2");
+        gui = new CaelusWindow(GetRelPath("resource\\search.anus"));
+        gui->SetLabel("Lego Inventory Manager 2");
     }
 }

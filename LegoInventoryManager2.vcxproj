@@ -142,6 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\Caelus.h" />
     <ClInclude Include="src\Config.h" />
     <ClInclude Include="src\Database.h" />
     <ClInclude Include="src\Enums.h" />
@@ -161,6 +162,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="edgemanifestxml.cpp" />
+    <ClCompile Include="src\Caelus.cpp" />
     <ClCompile Include="src\Config.cpp" />
     <ClCompile Include="src\Database.cpp" />
     <ClCompile Include="src\Enums.cpp" />

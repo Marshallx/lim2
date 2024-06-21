@@ -58,7 +58,7 @@ namespace Caelus
         SetBackgroundColor(Color::Parse(color));
     }
 
-    void CaelusClass::SetBorder(std::string const & border, Edge const edge)
+    void CaelusClass::SetBorder(std::string_view const & border, Edge const edge)
     {
         auto toks = mxi::explode(border, " ");
         bool tokSolid = false;
@@ -67,7 +67,7 @@ namespace Caelus
 
         for (size_t i = 0; i < toks.size(); ++i)
         {
-            auto & tok = toks[i];
+            auto tok = std::string(toks[i]);
             if (tok.empty()) continue;
             if (tok == "rgb(")
             {
@@ -207,7 +207,7 @@ namespace Caelus
 
     void CaelusClass::SetLabel(std::string_view const & v)
     {
-        m_label = v;
+        m_label = std::string{ v };
     }
 
     void CaelusClass::SetOpacity(uint8_t const v)
@@ -249,9 +249,8 @@ namespace Caelus
             left=5px //parent
             left=+5px // sibling
         */
-        auto spec = std::string{ tether };
-        mxi::trim(spec);
-        constexpr static auto const pattern = R"((^(?:([^\.]+)\.(left|right|bottom|top|l|r|t|b))?(?:\s+)?(?:(\+|\-)?(?:\s+)([0-9]+(?:\.[0-9]+)?)(em|px|%|))?$))";
+        auto spec = std::string{ mxi::trim(tether) };
+        constexpr static auto const pattern = R"(^(?:([^\.]+)\.(left|right|bottom|top|l|r|t|b))?(?:\s+)?(?:(\+|\-)?(?:\s+)([0-9]+(?:\.[0-9]+)?)(em|px|%|))?$)";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
 
         static auto const msgFormat = "Invalid tether: bad format. Expected [id.side][[+|-]offset[px|em|%]], saw {}";
