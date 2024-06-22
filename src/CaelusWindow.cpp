@@ -50,17 +50,21 @@ namespace Caelus
 
     void CaelusWindow::SetDefaults()
     {
-        auto cp = std::make_shared<CaelusClass>("window");
+        auto cp = std::make_shared<CaelusClass>("window", &m_definedClasses);
         auto c = cp.get();
         m_definedClasses.m_map["window"] = cp;
         m_class = c;
         c->SetElement(this);
         // Styles
         c->SetBackgroundColor(0xFFFFFF);
+        c->SetBorderColor(0);
+        c->SetBorderRadius("0");
+        c->SetBorderWidth("0");
         c->SetFontFace("Arial");
         c->SetFontSize("12pt");
         c->SetFontStyle("normal");
         c->SetFontWeight(REGULAR);
+        c->SetPadding("0");
         c->SetTextAlignH(LEFT);
         c->SetTextAlignV(TOP);
         c->SetTextColor(0);
@@ -175,7 +179,7 @@ namespace Caelus
 
     int CaelusWindow::Start(HINSTANCE hInstance, int const nCmdShow, int const x, int const y, int const width, int const height)
     {
-        auto const optTitle = GetLabel();
+        auto const & optTitle = GetLabel();
         auto const title = optTitle.has_value() ? optTitle.value() : std::string{};
         HWND hwnd = CreateWindow(
             kWindowClass,
@@ -193,12 +197,10 @@ namespace Caelus
 
         PrepareToComputeLayout();
 
-        auto rcClient = RECT{};
-        GetClientRect(m_outerHwnd, &rcClient);
         m_futureRect.SetEdge(TOP, 0);
         m_futureRect.SetEdge(LEFT, 0);
-        m_futureRect.SetEdge(RIGHT, rcClient.right);
-        m_futureRect.SetEdge(BOTTOM, rcClient.bottom);
+        m_futureRect.SetEdge(RIGHT, width);
+        m_futureRect.SetEdge(BOTTOM, height);
 
         size_t previousUnresolvedCount = 0;
         for(;;)

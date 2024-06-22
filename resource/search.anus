@@ -2,7 +2,7 @@
 background-color=#9CD6E4
 
 [window]
-class=alice
+class=.alice
 background-color=#9CD6E4
 
 [querybar]

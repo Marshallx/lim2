@@ -18,7 +18,7 @@ namespace Caelus
     public:
         // Painting
         static void Register(HINSTANCE hInstance);
-        LRESULT paint(HWND hwnd, HDC hdc);
+        LRESULT Paint(HWND hwnd, HDC hdc);
         HFONT GetHfont();
 
         // Element arrangement
@@ -31,36 +31,80 @@ namespace Caelus
         void RemoveChildren();
         void show();
         void hide();
-
-        // Style getters
-        std::optional<Color> const & GetBackgroundColor() const;
         CaelusElement * GetChild(size_t const n) const noexcept;
         HWND GetHwnd() const noexcept;
         CaelusElement * GetParent() noexcept;
-        CaelusElementType GetType() const;
-        std::string const & GetValue() const;
         CaelusWindow const * GetWindow() const;
 
+        std::string const & GetValue() const;
+
+        // Style getters
+        template<typename T>
+        std::optional<T> const & GetStyle(CaelusElementStyle style, int const edge = 0) const
+        {
+            auto elem = this;
+            while (elem)
+            {
+                auto const & v = elem->m_class->GetStyle<T>(style, edge);
+                if (v.has_value()) return v;
+
+                switch (style)
+                {
+                case LABEL:
+                case SIZE:
+                case TETHER:
+                    // Uninheritable
+                    break;
+                default:
+                    elem = elem->m_parent;
+                    continue;
+                }
+                break;
+            }
+            static std::optional<T> def{};
+            return def;
+        }
+
+        Color const & GetBackgroundColor() const { return GetStyle<Color>(BACKGROUND_COLOR).value(); }
+        Color const & GetBorderColor(Edge const edge) const { return GetStyle<Color>(BORDER_COLOR, edge).value(); }
+        Color const & GetTextColor() const { return GetStyle<Color>(TEXT_COLOR).value(); }
+        Measure const & GetBorderRadius(Corner const corner) const { return GetStyle<Measure>(BORDER_RADIUS, corner).value(); }
+        Measure const & GetBorderWidth(Edge const edge) const { return GetStyle<Measure>(BORDER_WIDTH, edge).value(); }
+        Measure const & GetFontSize() const { return GetStyle<Measure>(FONT_SIZE).value(); }
+        Measure const & GetPadding(Edge const edge) const { return GetStyle<Measure>(PADDING, edge).value(); }
+        std::optional<Measure> const & GetSize(Dimension const dim) const { return GetStyle<Measure>(SIZE, dim); }
+        std::optional<Tether> const & GetTether(Edge const edge) const { return GetStyle<Tether>(TETHER, edge); }
+        Edge GetTextAlignH() const { return GetStyle<Edge>(TEXT_ALIGNH).value(); }
+        Edge GetTextAlignV() const { return GetStyle<Edge>(TEXT_ALIGNV).value(); }
+        std::string const & GetFontFace() const { return GetStyle<std::string>(FONT_FACE).value(); }
+        std::optional<std::string> const & GetLabel() const { return GetStyle<std::string>(LABEL); }
+        bool GetFontItalic() const { return GetStyle<bool>(FONT_ITALIC).value(); }
+        int GetFontWeight() const { return GetStyle<int>(FONT_WEIGHT).value(); }
+
+        static Tether const GetDefaultTether(Edge const edge) { return { ".", ~edge, { 0, PX } }; }
+
         // Style setters
-        void SetBackgroundColor(Color const & v);
-        void SetBackgroundColor(std::string_view const & spec);
+        void SetBackgroundColor(Color const & color);
+        void SetBackgroundColor(std::string_view const & color);
+        void SetBorderColor(Color const & color);
+        void SetBorderColor(std::string_view const & color);
         void SetFontFace(std::string_view const & face);
         void SetFontSize(std::string_view const & size);
         void SetFontStyle(std::string_view const & style);
         void SetFontWeight(int const weight);
-        void SetImage(HBITMAP v);
+        void SetImage(HBITMAP imageHandle);
         void SetLabel(std::string_view const & label);
         void SetOpacity(uint8_t const opacity);
         void SetOpacity(double const opacity);
-        void SetPadding(Edge const edge, Measure const & v);
+        void SetPadding(Edge const edge, Measure const & padding);
         void SetSize(std::string_view const & width, std::string_view const & height);
-        void SetTextAlignH(Edge const v);
-        void SetTextColor(Color const & v);
-        void SetTextColor(std::string_view const & spec);
-        void SetType(CaelusElementType const v);
-        void SetType(std::string_view const & v);
-        void SetValue(std::string_view const & v);
-        void SetVisible(bool const v = true);
+        void SetTextAlignH(Edge const edge);
+        void SetTextColor(Color const & color);
+        void SetTextColor(std::string_view const & color);
+        void SetType(CaelusElementType const type);
+        void SetType(std::string_view const & type);
+        void SetValue(std::string_view const & value);
+        void SetVisible(bool const visible = true);
 
         void tether(Edge const myEdge, std::string_view const & otherId, Edge const otherEdge, Measure const & offset);
         void tether(Edge const myEdge, std::string const & spec);
@@ -86,23 +130,8 @@ namespace Caelus
         // Move futureRect to currentRect and redraw everything
         void CommitLayout(HINSTANCE hInstance, HWND outerWindow = NULL);
 
-        static Tether const GetDefaultTether(Edge const edge);
         CaelusElement * GetSibling(std::string_view const & name) const;
         CaelusElement * GetSibling(Edge const edge) const;
-
-        // Styles inherited from parent or classes
-        std::optional<Color> const & GetBorderColor(Edge const edge) const;
-        std::optional<Measure> const & GetBorderWidthDef(Edge const edge) const;
-        std::optional<std::string> const & GetLabel() const;
-        std::optional<std::string> const & GetFontFace() const;
-        std::optional<bool> const & GetFontItalic() const;
-        std::optional<Measure> const & GetFontSize() const;
-        std::optional<int> const & GetFontWeight() const;
-        std::optional<Measure> const & GetPaddingDef(Edge const edge) const;
-        std::optional<Measure> const & GetSizeDef(Dimension const dim) const;
-        std::optional<Tether> const & GetTether(Edge const edge) const;
-        std::optional<Edge> const & GetTextAlignH() const;
-        std::optional<Color> const & GetTextColor() const;
 
         std::vector<std::shared_ptr<CaelusElement>> m_children = {};
         CaelusClass * m_class = nullptr;
@@ -112,5 +141,9 @@ namespace Caelus
         ResolvedRect m_futureRect;
         HFONT m_hfont = NULL;
         HWND m_hwnd = 0;
+
+    private:
+        void PaintBackground(HDC hdc, RECT const & rectClient) const;
+        void PaintBorder(HDC hdc, RECT const & rectClient, Edge const edge) const;
     };
 }

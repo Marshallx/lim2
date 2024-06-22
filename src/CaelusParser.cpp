@@ -119,9 +119,9 @@ namespace Caelus
     CaelusParser::CaelusParser(std::string_view const & source, CaelusClassMap & classes)
     {
         lines = mxi::explode(source, "\n");
+        NextLine();
         while(lineno<lines.size())
         {
-            NextLine();
             EatWhitespace();
             switch (Peek())
             {
@@ -130,6 +130,9 @@ namespace Caelus
             case '[':
                 // New section
                 ParseSection(classes);
+                continue;
+            default:
+                Error("Unknown");
             }
         }
     };
@@ -153,16 +156,12 @@ namespace Caelus
             }
             if (Peek() != ']') continue;
             name = linetext.substr(start, col - 1);
-            if (classes.m_map.contains(name.c_str()))
-            {
-                Error(std::format("Duplicate {} name \"{}\"", name.starts_with('.') ? "class" : "element", name));
-            }
             ++col;
             break;
         }
         EatWhitespace();
         Expect(0);
-        auto cp = std::make_shared<CaelusClass>(CaelusClass{name});
+        auto cp = classes.m_map.contains(name.c_str()) ? classes.m_map[name] : std::make_shared<CaelusClass>(CaelusClass{name, &classes});
         classes.m_map[name] = cp;
         auto c = cp.get();
         if (!name.starts_with('.')) c->SetParentName("window");

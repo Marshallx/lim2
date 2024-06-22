@@ -27,6 +27,13 @@ namespace Caelus
         }
     }
 
+    std::vector<CaelusClass *> CaelusClass::GetClassChain() const
+    {
+        std::vector<CaelusClass *> cs = {};
+        m_map->GetClassChain(m_name, cs);
+        return cs;
+    }
+
 
     // =-=-=-=-=-=-=-=-= Class Setters =-=-=-=-=-=-=-=-=
 
@@ -37,9 +44,9 @@ namespace Caelus
         for (auto i = more.size(); i != 0;)
         {
             --i;
-            mxi::trim(more[i]);
-            if (std::find(m_classNames.begin(), m_classNames.end(), more[i]) != m_classNames.end()) continue;
-            m_classNames.push_back(std::string{ more[i] });
+            auto const trimmed = mxi::trim(more[i]);
+            if (std::find(m_classNames.begin(), m_classNames.end(), trimmed) != m_classNames.end()) continue;
+            m_classNames.push_back(std::string{ trimmed });
         }
     }
 
@@ -113,18 +120,27 @@ namespace Caelus
 
     }
 
-    void CaelusClass::SetBorderWidth(std::string_view const & width, Edge const edge)
+    void CaelusClass::SetBorderColor(Color const & color, Edge const edge)
     {
-        auto m = Measure::Parse(width);
-        if (edge == Edge::ALL_EDGES)
+        if (edge == ALL_EDGES)
         {
-            static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
-            for (auto const edge : edges)
-            {
-                if (!m_borderWidth[edge].has_value()) m_borderWidth[edge] = m;
-            }
+            m_borderColor[TOP] = color;
+            m_borderColor[LEFT] = color;
+            m_borderColor[BOTTOM] = color;
+            m_borderColor[RIGHT] = color;
+            return;
         }
-        else m_borderWidth[edge] = m;
+        m_borderColor[edge] = color;
+    }
+
+    void CaelusClass::SetBorderColor(uint32_t const color, Edge const edge)
+    {
+        SetBorderColor(Color{color}, edge);
+    }
+
+    void CaelusClass::SetBorderColor(std::string_view const & color, Edge const edge)
+    {
+        SetBorderColor(Color::Parse(color), edge);
     }
 
     void CaelusClass::SetBorderRadius(std::string_view const & radius, Corner const corner)
@@ -139,6 +155,20 @@ namespace Caelus
             }
         }
         else m_borderRadius[corner] = m;
+    }
+
+    void CaelusClass::SetBorderWidth(std::string_view const & width, Edge const edge)
+    {
+        auto m = Measure::Parse(width);
+        if (edge == Edge::ALL_EDGES)
+        {
+            static auto const edges = { TOP, LEFT, BOTTOM, RIGHT };
+            for (auto const edge : edges)
+            {
+                if (!m_borderWidth[edge].has_value()) m_borderWidth[edge] = m;
+            }
+        }
+        else m_borderWidth[edge] = m;
     }
 
     void CaelusClass::SetElement(CaelusElement * element)
@@ -250,14 +280,17 @@ namespace Caelus
             left=+5px // sibling
         */
         auto spec = std::string{ mxi::trim(tether) };
-        constexpr static auto const pattern = R"(^(?:([^\.]+)\.(left|right|bottom|top|l|r|t|b))?(?:\s+)?(?:(\+|\-)?(?:\s+)([0-9]+(?:\.[0-9]+)?)(em|px|%|))?$)";
+        constexpr static auto const pattern = R"(^(?:([^\.]+)\.(left|right|bottom|top|l|r|t|b))?(?:\s+)?(?:(\+|\-)?(?:\s+)?([0-9]+(?:\.[0-9]+)?)(em|px|%|))?$)";
         static auto const regex = std::regex(pattern, std::regex_constants::ECMAScript);
 
         static auto const msgFormat = "Invalid tether: bad format. Expected [id.side][[+|-]offset[px|em|%]], saw {}";
         static auto const msgEdge = "Invalid tether : incompatible edge axis.";
 
         auto matches = std::smatch{};
-        if (!std::regex_search(spec, matches, regex)) MX_THROW(std::format(msgFormat, spec).c_str());
+        if (!std::regex_search(spec, matches, regex))
+        {
+            MX_THROW(std::format(msgFormat, spec).c_str());
+        }
 
         auto name = matches[1].str();
         auto const sedge = matches[2].str();

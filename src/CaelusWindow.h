@@ -16,7 +16,7 @@ namespace Caelus
         CaelusWindow(std::string_view const & source);
         CaelusClassMap const & GetClassMap() const;
         static void Register(HINSTANCE hInstance);
-        int Start(HINSTANCE hInstance, int const nCmdShow, int const x = CW_USEDEFAULT, int const y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
+        int Start(HINSTANCE hInstance, int const nCmdShow, int const x = 100, int const y = 100, int width = 640, int height = 480);
         void IgnoreErrors(bool const ignore = true);
         void SetResizable(bool const resizable = true);
 

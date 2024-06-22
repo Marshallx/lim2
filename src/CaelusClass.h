@@ -1,5 +1,6 @@
 #pragma once
 
+#include <assert.h>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -16,6 +17,25 @@ namespace Caelus
         GENERIC = 0, TEXT, EDITBOX, BUTTON, LISTBOX, COMBOBOX, CHECKBOX, CLASS
     };
 
+    enum CaelusElementStyle
+    {
+        BACKGROUND_COLOR,
+        BORDER_COLOR,
+        BORDER_RADIUS,
+        BORDER_WIDTH,
+        FONT_FACE,
+        FONT_ITALIC,
+        FONT_SIZE,
+        FONT_WEIGHT,
+        LABEL,
+        PADDING,
+        SIZE,
+        TETHER,
+        TEXT_ALIGNH,
+        TEXT_ALIGNV,
+        TEXT_COLOR
+    };
+
     enum FontWeight : int
     {
         THIN = 100,
@@ -30,31 +50,108 @@ namespace Caelus
     };
 
     class CaelusElement;
+    class CaelusClass;
+
+    class CaelusClassMap
+    {
+    public:
+        CaelusClass * GetClass(std::string_view const & name) const;
+        void GetClassChain(std::string_view const & name, std::vector<CaelusClass *> & chain) const;
+        std::unordered_map<std::string, std::shared_ptr<CaelusClass>> m_map = {};
+    };
 
     class CaelusClass
     {
     public:
-        CaelusClass(std::string_view const & name) : m_name(name)
+        CaelusClass(std::string_view const & name, CaelusClassMap * map) : m_name(name), m_map(map)
             { if (name.empty()) MX_THROW("All classes and elements require a unique name"); };
 
         void AddClassNames(std::string_view const & classes);
-        std::optional<Color> const & GetBackgroundColor() const noexcept { return m_backgroundColor; };
-        std::optional<Color> const & GetBorderColor(Edge const edge) const noexcept { return m_borderColor[edge]; };
-        std::optional<Measure> const & GetBorderWidthDef(Edge const edge) const noexcept { return m_borderWidth[edge]; };
+
         std::vector<std::string> const & GetClassNames() const { return m_classNames; };
         CaelusElement const * GetElement() const noexcept { return m_element; };
-        std::optional<std::string> const & GetFontFace() const noexcept { return m_fontFace; };
-        std::optional<bool> const & GetFontItalic() const noexcept { return m_fontItalic; };
-        std::optional<Measure> const & GetFontSize() const noexcept { return m_fontSize; };
-        std::optional<int> const & GetFontWeight() const noexcept { return m_fontWeight; };
-        std::optional<std::string> const & GetLabel() const noexcept { return m_label; };
         std::string const & GetName() const noexcept { return m_name; };
-        std::optional<Measure> const & GetPaddingDef(Edge const edge) const noexcept { return m_padding[edge]; };
         std::string const & GetParentName() const noexcept { return m_parentName; };
-        std::optional<Measure> const & GetSizeDef(Dimension const dim) const noexcept { return m_size[dim]; };
-        std::optional<Tether> const & GetTether(Edge const edge) const noexcept { return m_tethers[edge]; };
-        std::optional<Edge> const & GetTextAlignH() const noexcept { return m_alignTextH; };
-        std::optional<Color> const & GetTextColor() const noexcept { return m_textColor; };
+
+        template<typename T, typename N>
+        std::optional<T> const & GetStyle(CaelusElementStyle const style, N const edge, bool considerSuperClasses = true) const
+        {
+            if (considerSuperClasses)
+            {
+                auto const cs = GetClassChain();
+                for (auto const c : cs)
+                {
+                     auto const & v = c->GetStyle<T>(style, edge, false);
+                     if (v.has_value()) return v;
+                }
+            }
+            else
+            {
+                if constexpr (std::is_same_v<T, Color>)
+                {
+                    switch (style)
+                    {
+                    case BACKGROUND_COLOR: return m_backgroundColor;
+                    case BORDER_COLOR: return m_borderColor[edge];
+                    case TEXT_COLOR: return m_textColor;
+                    }
+                }
+                else if constexpr (std::is_same_v<T, Measure>)
+                {
+                    switch (style)
+                    {
+                    case BORDER_RADIUS: return m_borderRadius[edge];
+                    case BORDER_WIDTH: return m_borderWidth[edge];
+                    case FONT_SIZE: return m_fontSize;
+                    case PADDING: return m_padding[edge];
+                    case SIZE: return m_size[edge];
+                    }
+                }
+                else if constexpr (std::is_same_v<T, std::string>)
+                {
+                    switch (style)
+                    {
+                    case FONT_FACE: return m_fontFace;
+                    case LABEL: return m_label;
+                    }
+                }
+                else if constexpr (std::is_same_v<T, bool>)
+                {
+                    switch (style)
+                    {
+                    case FONT_ITALIC: return m_fontItalic;
+                    }
+                }
+                else if constexpr (std::is_same_v<T, int>)
+                {
+                    switch (style)
+                    {
+                    case FONT_WEIGHT: return m_fontWeight;
+                    }
+                }
+                else if constexpr (std::is_same_v<T, Tether>)
+                {
+                    switch (style)
+                    {
+                    case TETHER: return m_tethers[edge];
+                    }
+                }
+                else if constexpr (std::is_same_v<T, Edge>)
+                {
+                    switch (style)
+                    {
+                    case TEXT_ALIGNH: return m_alignTextH;
+                    case TEXT_ALIGNV: return m_alignTextV;
+                    }
+                }
+                else
+                {
+                    static_assert(mxi::always_false<T>, "Unsupported type for GetStyle()");
+                }
+            }
+            static std::optional<T> def{};
+            return def;
+        }
 
         void SetBackgroundColor(Color const & color);
         void SetBackgroundColor(std::string_view const & color);
@@ -119,13 +216,10 @@ namespace Caelus
         std::optional<Color> m_textColor;
         std::string m_value;
         bool m_visible = true;
+
+        CaelusClassMap * m_map = nullptr;
+
+        std::vector<CaelusClass *> GetClassChain() const;
     };
 
-    class CaelusClassMap
-    {
-    public:
-        CaelusClass * GetClass(std::string_view const & name) const;
-        void GetClassChain(std::string_view const & name, std::vector<CaelusClass *> & chain) const;
-        std::unordered_map<std::string, std::shared_ptr<CaelusClass>> m_map = {};
-    };
 }

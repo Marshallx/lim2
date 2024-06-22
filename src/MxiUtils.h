@@ -10,6 +10,9 @@
 
 namespace mxi
 {
+    template <typename>
+    constexpr auto always_false = false;
+
     std::filesystem::path GetModuleFilePath();
 
     // Convert UTF-16 std::wstring to UTF-8 std::string.
