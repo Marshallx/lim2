@@ -3,18 +3,21 @@ background-color=#9CD6E4
 
 [window]
 class=.alice
-background-color=#9CD6E4
+background-color=aliceblue
+border=1px blue solid
 
 [querybar]
-class=alice
+background-color=#9CD6E4
 left=window.left
 right=window.right
 height=5em
+border=1px black solid
 
 [searchbox]
 parent=querybar
 type=editbox
-width=10em
+width=10px
 top=4px
 left=4px;test
 background-color=#9CD6E4
+border=1px green solid

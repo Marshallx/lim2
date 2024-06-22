@@ -28,19 +28,22 @@ namespace Caelus
 
     LRESULT CALLBACK CaelusWindow_WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
-        HDC hdc;
-        PAINTSTRUCT ps;
-        RECT rect;
+        //HDC hdc;
+        //PAINTSTRUCT ps;
+        //RECT rect;
         switch (message)
         {
         case WM_CREATE:
         case WM_PAINT:
+            /*
             hdc = BeginPaint(hwnd, &ps);
             GetClientRect(hwnd, &rect);
             DrawTextW(hdc, (L"Hello,Windows"), -1, &rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
             MapWindowPoints(hwnd, HWND_DESKTOP, (LPPOINT)&rect, 2);
             EndPaint(hwnd, &ps);
-            return 0;
+            */
+
+            return DefWindowProc(hwnd, message, wParam, lParam);
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
@@ -134,33 +137,35 @@ namespace Caelus
         }
     }
 
-    void CaelusWindow::FitToInner()
+    void CaelusWindow::FitToInner(HWND inner)
     {
-        // On creation
+        auto outerHwnd = ::GetParent(inner);
         auto rcClient = RECT{};
         auto rcWind = RECT{};
         auto ptDiff = POINT{};
-        GetClientRect(m_outerHwnd, & rcClient);
-        GetWindowRect(m_outerHwnd, &rcWind);
+        GetClientRect(inner, &rcClient);
+        auto width = rcClient.right;
+        auto height = rcClient.bottom;
+        GetClientRect(outerHwnd, &rcClient);
+        GetWindowRect(outerHwnd, &rcWind);
         ptDiff.x = (rcWind.right - rcWind.left) - rcClient.right;
         ptDiff.y = (rcWind.bottom - rcWind.top) - rcClient.bottom;
+        width += ptDiff.x;
+        height += ptDiff.y;
 
-        auto const width = m_futureRect.GetSize(WIDTH) + ptDiff.x;
-        auto const height = m_futureRect.GetSize(HEIGHT) + ptDiff.y;
-        MoveWindow(m_outerHwnd, rcWind.left, rcWind.top,
-            m_futureRect.GetSize(WIDTH) + ptDiff.x,
-            m_futureRect.GetSize(HEIGHT) + ptDiff.y, TRUE);
-
-        if (rcClient.right == width && rcClient.bottom == height) return;
-
-        SetWindowPos(m_outerHwnd, NULL, rcWind.left, rcWind.top,
-            width, height,
-            SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
+        if (rcWind.right - rcWind.left != width ||
+            rcWind.bottom - rcWind.top != height)
+        {
+            SetWindowPos(outerHwnd, NULL, rcWind.left, rcWind.top,
+                width, height,
+                SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
+        }
     }
 
     void CaelusWindow::FitToOuter()
     {
-        // On outer resize
+        // TODO - On outer resize, relayout
+        /*
         auto rcClient = RECT{};
         auto rcWind = RECT{};
         auto ptDiff = POINT{};
@@ -174,7 +179,7 @@ namespace Caelus
             rcWind.bottom - ptDiff.y,
             SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
 
-        // TODO relayout
+        */
     }
 
     int CaelusWindow::Start(HINSTANCE hInstance, int const nCmdShow, int const x, int const y, int const width, int const height)
@@ -212,9 +217,6 @@ namespace Caelus
                 MX_THROW("Failed to recalculate layout - cyclic dependency?");
             }
         }
-
-        // Reposition/resize outer window (if necessary)
-        FitToInner();
 
         CommitLayout(hInstance, hwnd);
 

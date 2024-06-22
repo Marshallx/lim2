@@ -95,12 +95,14 @@ namespace Caelus
             try
             {
                 tokMeasure = Measure::Parse(tok);
+                continue;
             }
             catch (...) {};
 
             try
             {
                 tokColor = Color::Parse(tok);
+                continue;
             }
             catch (...) {};
 

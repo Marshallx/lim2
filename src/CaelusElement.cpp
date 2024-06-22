@@ -395,6 +395,13 @@ namespace Caelus
                 MX_LOG_ERROR("Unknown static style.");
                 return -1;
             }
+
+            if (!elem->GetParent())
+            {
+                // Creating outer window. Resize outer to fit inner
+                CaelusWindow::FitToInner(hwnd);
+            }
+
             return lResult;
         }
 
@@ -423,6 +430,7 @@ namespace Caelus
         {
             CREATESTRUCTW * cs = (CREATESTRUCTW *)lParam;
             SetPropA(hwnd, "elem", cs->lpCreateParams);
+            //elem = (CaelusElement *)GetPropA(hwnd, "elem");
 
             if (full_style & SS_SUNKEN || style == SS_ETCHEDHORZ || style == SS_ETCHEDVERT)
             {
@@ -588,7 +596,7 @@ namespace Caelus
             if (isFarEdge(tether.edge))
             {
                 if (m_parent->ComputeSize(edgeToDimension(tether.edge)) == UNRESOLVED) return UNRESOLVED;
-                anchor = m_parent->m_futureRect.GetSize(edgeToDimension(tether.edge)) - nc;
+                anchor = m_parent->m_futureRect.GetSize(edgeToDimension(tether.edge)) - nc - 1;
             }
             else
             {
@@ -604,6 +612,7 @@ namespace Caelus
             {
                 if (sibling->ComputeEdge(otherEdge) == UNRESOLVED) return UNRESOLVED;
                 anchor = sibling->m_futureRect.GetEdge(otherEdge);
+                if (isFarEdge(otherEdge)) anchor -= 1;
             }
         }
 
@@ -614,6 +623,10 @@ namespace Caelus
     size_t CaelusElement::ComputeLayout()
     {
         size_t unresolved = 0;
+        unresolved += ComputeBorder(TOP);
+        unresolved += ComputeBorder(LEFT);
+        unresolved += ComputeBorder(BOTTOM);
+        unresolved += ComputeBorder(RIGHT);
         unresolved += ComputePadding(TOP);
         unresolved += ComputePadding(LEFT);
         unresolved += ComputePadding(BOTTOM);

@@ -19,13 +19,13 @@ namespace Caelus
         int Start(HINSTANCE hInstance, int const nCmdShow, int const x = 100, int const y = 100, int width = 640, int height = 480);
         void IgnoreErrors(bool const ignore = true);
         void SetResizable(bool const resizable = true);
+        static void FitToInner(HWND inner);
 
     private:
         CaelusWindow(CaelusWindow const &) = delete;
         void SetDefaults();
         void BuildAll();
         void FitToOuter();
-        void FitToInner();
         bool m_throwOnUnresolved = true;
         CaelusClassMap m_definedClasses = {};
         bool m_resizable = false;
