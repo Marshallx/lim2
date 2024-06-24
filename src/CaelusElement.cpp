@@ -87,7 +87,6 @@ namespace Caelus
         */
     }
 
-
     // =-=-=-=-=-=-=-=-= Style setters =-=-=-=-=-=-=-=-=
 
     // TODO rest of the setters
@@ -222,22 +221,6 @@ namespace Caelus
 
 
     // =-=-=-=-=-=-=-=-= Layout and painting =-=-=-=-=-=-=-=-=
-
-    void CaelusElement::Register(HINSTANCE hInstance)
-    {
-        WNDCLASSEXW wcex = {
-            .cbSize = sizeof(WNDCLASSEX),
-            .style = CS_HREDRAW | CS_VREDRAW,
-            .lpfnWndProc = CaelusElement_WndProc,
-            .cbClsExtra = 0,
-            .cbWndExtra = 0,
-            .hInstance = hInstance,
-            .hCursor = LoadCursor(nullptr, IDC_ARROW),
-            .hbrBackground = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF)),
-            .lpszClassName = kElementClass,
-        };
-        RegisterClassExW(&wcex);
-    }
 
     void CaelusElement::PaintBackground(HDC hdc, RECT const & rc) const
     {
@@ -375,44 +358,60 @@ namespace Caelus
             return 0;
     }
 
-    LRESULT CaelusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+    LRESULT CaelusElement::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
-        LRESULT lResult = 0;
         LONG full_style = GetWindowLongW(hwnd, GWL_STYLE);
         LONG style = full_style & SS_TYPEMASK;
 
-        if (!IsWindow(hwnd)) return 0;
+#define ORIGINAL m_originalWndProc(hwnd, msg, wparam, lparam)
 
-
-        CaelusElement * elem = (uMsg != WM_NCCREATE) ? (CaelusElement *)GetPropA(hwnd, "elem") : nullptr;
-
-        switch (uMsg)
+        switch (msg)
         {
+
         case WM_CREATE:
         {
-            if (style < 0L || style > SS_TYPEMASK)
-            {
-                MX_LOG_ERROR("Unknown static style.");
-                return -1;
-            }
-
-            if (!elem->GetParent())
+            auto const result = ORIGINAL;
+            if (!m_parent)
             {
                 // Creating outer window. Resize outer to fit inner
                 CaelusWindow::FitToInner(hwnd);
             }
 
-            return lResult;
+            return result;
         }
 
-        case WM_NCDESTROY:
-            return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        case WM_NCCALCSIZE:
+        {
+            if (wparam == TRUE) return ORIGINAL;
+            auto rect = (RECT *)lparam;
+            rect->top += m_currentRect.GetNC(TOP);
+            rect->left += m_currentRect.GetNC(LEFT);
+            rect->bottom += m_currentRect.GetNC(BOTTOM);
+            rect->right -= m_currentRect.GetNC(RIGHT);
+            return 0;
+        }
 
-        case WM_ERASEBKGND:
-            return 1; // Do all painting in WM_PAINT, like Windows does
+        case WM_NCCREATE:
+        {
+            SetPropA(hwnd, "elem", this);
+            m_originalWndProc = (WNDPROC)GetClassLongPtr(hwnd, GCLP_WNDPROC);
+            SetClassLongPtr(hwnd, GCLP_WNDPROC, (LONG_PTR)CaelusElement_WndProc);
+            return ORIGINAL;
+        }
 
-        case WM_PRINTCLIENT:
-        case WM_PAINT:
+        case WM_NCPAINT:
+        {
+            //auto const result = ORIGINAL;
+            PAINTSTRUCT ps;
+            HDC hdc = wparam ? HDC(wparam) : BeginPaint(hwnd, &ps);
+            auto rect = RECT{};
+            GetWindowRect(hwnd, &rect);
+            PaintBackground(hdc, rect);
+            PaintBorder(hdc, rect, ALL_EDGES);
+            return 0;
+        }
+
+        /*case WM_PAINT:
         {
             PAINTSTRUCT ps;
             RECT rect;
@@ -423,132 +422,25 @@ namespace Caelus
             SelectClipRgn(hdc, hrgn);
             if (hrgn) DeleteObject(hrgn);
             if (!wParam) EndPaint(hwnd, &ps);
-        }
-        break;
+        }*/
 
-        case WM_NCCREATE:
-        {
-            CREATESTRUCTW * cs = (CREATESTRUCTW *)lParam;
-            SetPropA(hwnd, "elem", cs->lpCreateParams);
-            //elem = (CaelusElement *)GetPropA(hwnd, "elem");
+        } // switch(msg)
 
-            if (full_style & SS_SUNKEN || style == SS_ETCHEDHORZ || style == SS_ETCHEDVERT)
-            {
-                SetWindowLongW(hwnd, GWL_EXSTYLE, GetWindowLongW(hwnd, GWL_EXSTYLE) | WS_EX_STATICEDGE);
-            }
+        return ORIGINAL;
 
-            if (style == SS_ETCHEDHORZ || style == SS_ETCHEDVERT)
-            {
-                RECT rc;
-                GetClientRect(hwnd, &rc);
-                if (style == SS_ETCHEDHORZ) rc.bottom = rc.top; else rc.right = rc.left;
-                AdjustWindowRectEx(&rc, full_style, FALSE, GetWindowLongW(hwnd, GWL_EXSTYLE));
-                SetWindowPos(hwnd, NULL, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOZORDER);
-            }
+#undef ORIGINAL
+    }
 
-            switch (style) {
-            case SS_ICON:
-            {
-                const WCHAR * name = cs->lpszName;
-                auto hIcon = HICON{};
+    LRESULT CaelusElement_WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+    {
+        if (!IsWindow(hwnd)) return 0;
 
-                if (name && name[0] == 0xffff)
-                {
-                    name = MAKEINTRESOURCEW(name[1]);
-                }
+        auto elem = (CaelusElement *)((msg != WM_NCCREATE)
+            ? GetPropA(hwnd, "elem")
+            : ((CREATESTRUCTW *)lparam)->lpCreateParams
+            );
 
-                //TODO hIcon = STATIC_LoadIconW(cs->hInstance, name, full_style);
-                //TODO STATIC_SetIcon(hwnd, hIcon, full_style);
-            }
-            break;
-            case SS_BITMAP:
-                if ((ULONG_PTR)cs->hInstance >> 16)
-                {
-                    const WCHAR * name = cs->lpszName;
-                    HBITMAP hBitmap;
-
-                    if (name && name[0] == 0xffff)
-                    {
-                        name = MAKEINTRESOURCEW(name[1]);
-                    }
-
-                    hBitmap = LoadBitmapW(cs->hInstance, name);
-                    //TODO STATIC_SetBitmap(hwnd, hBitmap, full_style);
-                }
-                break;
-            }
-        }
-        return DefWindowProc(hwnd, uMsg, wParam, lParam);
-
-        case WM_SETTEXT:
-            if (hasTextStyle(full_style))
-            {
-                auto const lResult = DefWindowProc(hwnd, uMsg, wParam, lParam);
-                //TODO STATIC_TryPaintFcn(hwnd, full_style);
-            }
-            break;
-
-        case WM_SETFONT:
-            return 0; // Ignore
-
-        case WM_GETFONT:
-            return (LRESULT)elem->GetHfont();
-
-        case WM_NCHITTEST:
-            if (full_style & SS_NOTIFY)
-                return HTCLIENT;
-            else
-                return HTTRANSPARENT;
-
-        case WM_GETDLGCODE:
-            return DLGC_STATIC;
-
-        case WM_LBUTTONDOWN:
-        case WM_NCLBUTTONDOWN:
-            if (full_style & SS_NOTIFY)
-                SendMessageW(GetParent(hwnd), WM_COMMAND,
-                    MAKEWPARAM(GetWindowLongPtrW(hwnd, GWLP_ID), STN_CLICKED), (LPARAM)hwnd);
-            return 0;
-
-        case WM_LBUTTONDBLCLK:
-        case WM_NCLBUTTONDBLCLK:
-            if (full_style & SS_NOTIFY)
-                SendMessageW(GetParent(hwnd), WM_COMMAND,
-                    MAKEWPARAM(GetWindowLongPtrW(hwnd, GWLP_ID), STN_DBLCLK), (LPARAM)hwnd);
-            return 0;
-
-        case STM_GETIMAGE:
-            //TODO return (LRESULT)STATIC_GetImage(hwnd, wParam, full_style);
-
-        case STM_GETICON:
-            //TODO return (LRESULT)STATIC_GetImage(hwnd, IMAGE_ICON, full_style);
-
-        case STM_SETIMAGE:
-            switch (wParam) {
-            case IMAGE_BITMAP:
-                if (style != SS_BITMAP) return 0;
-                //TODO lResult = (LRESULT)STATIC_SetBitmap(hwnd, (HBITMAP)lParam, full_style);
-                break;
-            case IMAGE_ICON:
-            case IMAGE_CURSOR:
-                if (style != SS_ICON) return 0;
-                //TODO lResult = (LRESULT)STATIC_SetIcon(hwnd, (HICON)lParam, full_style);
-                break;
-            }
-            //TODO STATIC_TryPaintFcn(hwnd, full_style);
-            break;
-
-        case STM_SETICON:
-            if (style != SS_ICON) return 0;
-            //TODO lResult = (LRESULT)STATIC_SetIcon(hwnd, (HICON)wParam, full_style);
-            //TODO STATIC_TryPaintFcn(hwnd, full_style);
-            break;
-
-        default:
-            return DefWindowProc(hwnd, uMsg, wParam, lParam);
-        }
-
-        return lResult;
+        return elem->WndProc(hwnd, msg, wparam, lparam);
     }
 
     void CaelusElement::Build()
@@ -742,10 +634,32 @@ namespace Caelus
         }
     }
 
+    wchar_t const * CaelusElement::GetWindowClass() const
+    {
+        static auto const kButton = L"BUTTON";
+        static auto const kComboBox = L"COMBOBOX";
+        static auto const kEdit = L"EDIT";
+        static auto const kListBox = L"LISTBOX";
+        static auto const kStatic = L"STATIC";
+        switch (GetInputType())
+        {
+        case InputType::NONE: return kStatic;
+        case InputType::BUTTON: return kButton;
+        case InputType::CHECKBOX: return kButton;
+        case InputType::COMBOBOX: return kComboBox;
+        case InputType::EDITBOX: return kEdit;
+        case InputType::LISTBOX: return kListBox;
+        case InputType::RADIO: return kButton;
+        }
+        return kStatic;
+    }
+
     void CaelusElement::Spawn(HINSTANCE hInstance, HWND outerWindow)
     {
         if (m_hwnd) MX_THROW("Element window already created!");
+
         DWORD style = WS_CHILD | WS_VISIBLE;
+
         switch (GetTextAlignH())
         {
         case LEFT: style |= ES_LEFT; break;
@@ -753,10 +667,16 @@ namespace Caelus
         case RIGHT: style |= ES_RIGHT; break;
         }
 
+        switch (GetInputType())
+        {
+        case CHECKBOX: style |= BS_CHECKBOX;
+        case RADIO: style |= BS_RADIOBUTTON;
+        }
+
         auto const & optLabel = GetLabel();
         auto const & label = optLabel.has_value() ? optLabel.value() : std::string{};
         m_hwnd = CreateWindow(
-            kElementClass,
+            GetWindowClass(),
             mxi::Utf16String(label).c_str(),
             style,
             m_currentRect.GetEdge(LEFT),
@@ -770,8 +690,11 @@ namespace Caelus
         );
 
         if (!m_hwnd) MX_THROW("Failed to create element window!");
-
         UpdateFont();
+        Sleep(500);
+        auto rc = RECT{};
+        GetWindowRect(m_hwnd, &rc);
+        InvalidateRect(m_hwnd, &rc, true);
     }
 
     HFONT CaelusElement::GetHfont()

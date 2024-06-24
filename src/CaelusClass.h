@@ -12,9 +12,9 @@
 
 namespace Caelus
 {
-    enum CaelusElementType
+    enum InputType
     {
-        GENERIC = 0, TEXT, EDITBOX, BUTTON, LISTBOX, COMBOBOX, CHECKBOX, CLASS
+        NONE, EDITBOX, BUTTON, CHECKBOX, LISTBOX, COMBOBOX, RADIO
     };
 
     enum CaelusElementStyle
@@ -27,6 +27,7 @@ namespace Caelus
         FONT_ITALIC,
         FONT_SIZE,
         FONT_WEIGHT,
+        INPUT_TYPE,
         LABEL,
         PADDING,
         SIZE,
@@ -144,6 +145,13 @@ namespace Caelus
                     case TEXT_ALIGNV: return m_alignTextV;
                     }
                 }
+                else if constexpr (std::is_same_v<T, InputType>)
+                {
+                    switch (style)
+                    {
+                    case INPUT_TYPE: return m_inputType;
+                    }
+                }
                 else
                 {
                     static_assert(mxi::always_false<T>, "Unsupported type for GetStyle()");
@@ -165,7 +173,6 @@ namespace Caelus
         void SetTextAlignH(Edge const edge);
         void SetTextAlignV(Edge const edge);
         void SetElement(CaelusElement * element);
-        void SetElementType(std::string_view const & type);
         void SetFontFace(std::string_view const & face);
         void SetFontSize(std::string_view const & size);
         void SetFontStyle(std::string_view const & style);
@@ -173,6 +180,7 @@ namespace Caelus
         void SetFontWeight(int const weight);
         void SetHeight(std::string_view const & height);
         void SetImagePath(std::filesystem::path const & path);
+        void SetInputType(std::string_view const & type);
         void SetLabel(std::string_view const & label);
         void SetOpacity(uint8_t const opacity);
         void SetPadding(std::string_view const & padding, Edge const edge = Edge::ALL_EDGES);
@@ -200,8 +208,8 @@ namespace Caelus
         std::optional<Measure> m_borderWidth[4];
         std::vector<std::string> m_classNames = {};
         CaelusElement * m_element = nullptr; // TODO need this?
-        std::optional<CaelusElementType> m_elementType;
         std::optional<std::string> m_fontFace;
+        std::optional<InputType> m_inputType = NONE;
         std::optional<bool> m_fontItalic;
         std::optional<Measure> m_fontSize;
         std::optional<int> m_fontWeight;

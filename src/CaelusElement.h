@@ -8,7 +8,6 @@
 
 namespace Caelus
 {
-    constexpr static auto const kElementClass = L"Caelus_ELEMENT";
     LRESULT CaelusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
     class CaelusWindow;
@@ -17,8 +16,8 @@ namespace Caelus
     {
     public:
         // Painting
-        static void Register(HINSTANCE hInstance);
         LRESULT Paint(HWND hwnd, HDC hdc);
+        LRESULT WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
         HFONT GetHfont();
 
         // Element arrangement
@@ -71,6 +70,7 @@ namespace Caelus
         Measure const & GetBorderRadius(Corner const corner) const { return GetStyle<Measure>(BORDER_RADIUS, corner).value(); }
         Measure const & GetBorderWidth(Edge const edge) const { return GetStyle<Measure>(BORDER_WIDTH, edge).value(); }
         Measure const & GetFontSize() const { return GetStyle<Measure>(FONT_SIZE).value(); }
+        InputType GetInputType() const { auto const & type = GetStyle<InputType>(INPUT_TYPE); return (type.has_value()) ? type.value() : NONE; }
         Measure const & GetPadding(Edge const edge) const { return GetStyle<Measure>(PADDING, edge).value(); }
         std::optional<Measure> const & GetSize(Dimension const dim) const { return GetStyle<Measure>(SIZE, dim); }
         std::optional<Tether> const & GetTether(Edge const edge) const { return GetStyle<Tether>(TETHER, edge); }
@@ -93,6 +93,7 @@ namespace Caelus
         void SetFontStyle(std::string_view const & style);
         void SetFontWeight(int const weight);
         void SetImage(HBITMAP imageHandle);
+        void SetInputType(std::string_view const & type);
         void SetLabel(std::string_view const & label);
         void SetOpacity(uint8_t const opacity);
         void SetOpacity(double const opacity);
@@ -101,7 +102,6 @@ namespace Caelus
         void SetTextAlignH(Edge const edge);
         void SetTextColor(Color const & color);
         void SetTextColor(std::string_view const & color);
-        void SetType(CaelusElementType const type);
         void SetType(std::string_view const & type);
         void SetValue(std::string_view const & value);
         void SetVisible(bool const visible = true);
@@ -114,7 +114,7 @@ namespace Caelus
         void Build();
         void Spawn(HINSTANCE hInstance, HWND outerWindow = NULL);
         void PrepareToComputeLayout();
-        void UpdateBackgroundBrush();
+        wchar_t const * GetWindowClass() const;
         void UpdateFont();
 
         // Resolves as many coordinates as possible (single pass) and returns the number of unresolved coordinates/dimensions.
@@ -141,6 +141,7 @@ namespace Caelus
         ResolvedRect m_futureRect;
         HFONT m_hfont = NULL;
         HWND m_hwnd = 0;
+        WNDPROC m_originalWndProc = NULL;
 
     private:
         void PaintBackground(HDC hdc, RECT const & rectClient) const;

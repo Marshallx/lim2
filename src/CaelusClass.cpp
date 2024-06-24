@@ -178,15 +178,36 @@ namespace Caelus
         m_element = element;
     }
 
-    void CaelusClass::SetElementType(std::string_view const & type)
+    void CaelusClass::SetInputType(std::string_view const & type)
     {
-        if (type == "button") { m_elementType = BUTTON; return; }
-        if (type == "combobox") { m_elementType = COMBOBOX; return; }
-        if (type == "edit") { m_elementType = EDITBOX; return; }
-        if (type == "listbox") { m_elementType = LISTBOX; return; }
-        if (type == "checkbox") { m_elementType = CHECKBOX; return; }
-        if (type == "class") { m_elementType = CLASS; return; }
-        m_elementType = GENERIC;
+        if (type == "editbox")
+        {
+            m_inputType = InputType::EDITBOX;
+        }
+        else if (type == "button")
+        {
+            m_inputType = InputType::BUTTON;
+        }
+        else if (type == "checkbox")
+        {
+            m_inputType = InputType::CHECKBOX;
+        }
+        else if (type == "radio")
+        {
+            m_inputType = InputType::RADIO;
+        }
+        else if (type == "combobox")
+        {
+            m_inputType = InputType::COMBOBOX;
+        }
+        else if (type == "listbox")
+        {
+            m_inputType = InputType::LISTBOX;
+        }
+        else
+        {
+            throw std::runtime_error(std::format("Unknown input type \"{}\"", type));
+        }
     }
 
     void CaelusClass::SetFontFace(std::string_view const & face)

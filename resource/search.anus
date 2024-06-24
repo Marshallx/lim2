@@ -4,20 +4,20 @@ background-color=#9CD6E4
 [window]
 class=.alice
 background-color=aliceblue
-border=1px blue solid
+border=2px blue solid
 
 [querybar]
 background-color=#9CD6E4
-left=window.left
-right=window.right
+left=window.left+4px
+right=window.right-4px
 height=5em
-border=1px black solid
+border=2px black solid
 
 [searchbox]
 parent=querybar
-type=editbox
+input-type=editbox
 width=10px
-top=4px
-left=4px;test
+top=10px
+left=10px;test
 background-color=#9CD6E4
-border=1px green solid
+border=2px green solid
