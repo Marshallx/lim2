@@ -118,7 +118,11 @@ namespace Caelus
                 if (!m_borderColor[edge].has_value()) m_borderColor[edge] = tokColor;
             }
         }
-        else m_borderWidth[edge] = tokMeasure;
+        else
+        {
+            if (!m_borderWidth[edge].has_value()) m_borderWidth[edge] = tokMeasure;
+            if (!m_borderColor[edge].has_value()) m_borderColor[edge] = tokColor;
+        }
 
     }
 
@@ -178,31 +182,31 @@ namespace Caelus
         m_element = element;
     }
 
-    void CaelusClass::SetInputType(std::string_view const & type)
+    void CaelusClass::SetElementType(std::string_view const & type)
     {
         if (type == "editbox")
         {
-            m_inputType = InputType::EDITBOX;
+            m_elementType = CaelusElementType::EDITBOX;
         }
         else if (type == "button")
         {
-            m_inputType = InputType::BUTTON;
+            m_elementType = CaelusElementType::BUTTON;
         }
         else if (type == "checkbox")
         {
-            m_inputType = InputType::CHECKBOX;
+            m_elementType = CaelusElementType::CHECKBOX;
         }
         else if (type == "radio")
         {
-            m_inputType = InputType::RADIO;
+            m_elementType = CaelusElementType::RADIO;
         }
         else if (type == "combobox")
         {
-            m_inputType = InputType::COMBOBOX;
+            m_elementType = CaelusElementType::COMBOBOX;
         }
         else if (type == "listbox")
         {
-            m_inputType = InputType::LISTBOX;
+            m_elementType = CaelusElementType::LISTBOX;
         }
         else
         {

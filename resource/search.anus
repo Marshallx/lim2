@@ -8,14 +8,15 @@ border=2px blue solid
 
 [querybar]
 background-color=#9CD6E4
-left=window.left+4px
-right=window.right-4px
+left=window.left+50px
+right=window.right-50px
+bottom=window.bottom - 50px
 height=5em
 border=2px black solid
 
 [searchbox]
 parent=querybar
-input-type=editbox
+type=editbox
 width=10px
 top=10px
 left=10px;test

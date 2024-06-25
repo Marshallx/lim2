@@ -12,9 +12,9 @@
 
 namespace Caelus
 {
-    enum InputType
+    enum CaelusElementType
     {
-        NONE, EDITBOX, BUTTON, CHECKBOX, LISTBOX, COMBOBOX, RADIO
+        GENERIC = 0, EDITBOX, BUTTON, CHECKBOX, LISTBOX, COMBOBOX, RADIO, last
     };
 
     enum CaelusElementStyle
@@ -27,7 +27,7 @@ namespace Caelus
         FONT_ITALIC,
         FONT_SIZE,
         FONT_WEIGHT,
-        INPUT_TYPE,
+        ELEMENT_TYPE,
         LABEL,
         PADDING,
         SIZE,
@@ -145,11 +145,11 @@ namespace Caelus
                     case TEXT_ALIGNV: return m_alignTextV;
                     }
                 }
-                else if constexpr (std::is_same_v<T, InputType>)
+                else if constexpr (std::is_same_v<T, CaelusElementType>)
                 {
                     switch (style)
                     {
-                    case INPUT_TYPE: return m_inputType;
+                    case ELEMENT_TYPE: return m_elementType;
                     }
                 }
                 else
@@ -180,7 +180,7 @@ namespace Caelus
         void SetFontWeight(int const weight);
         void SetHeight(std::string_view const & height);
         void SetImagePath(std::filesystem::path const & path);
-        void SetInputType(std::string_view const & type);
+        void SetElementType(std::string_view const & type);
         void SetLabel(std::string_view const & label);
         void SetOpacity(uint8_t const opacity);
         void SetPadding(std::string_view const & padding, Edge const edge = Edge::ALL_EDGES);
@@ -209,7 +209,7 @@ namespace Caelus
         std::vector<std::string> m_classNames = {};
         CaelusElement * m_element = nullptr; // TODO need this?
         std::optional<std::string> m_fontFace;
-        std::optional<InputType> m_inputType = NONE;
+        std::optional<CaelusElementType> m_elementType = GENERIC;
         std::optional<bool> m_fontItalic;
         std::optional<Measure> m_fontSize;
         std::optional<int> m_fontWeight;

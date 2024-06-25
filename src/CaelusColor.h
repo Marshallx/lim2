@@ -13,7 +13,7 @@ namespace Caelus
     public:
         Color() {};
         Color(Color const &) = default;
-        Color(uint32_t rgb) : r(GetRValue(rgb)), g(GetGValue(rgb)), b(GetBValue(rgb)) {};
+        Color(uint32_t rgb) : r(GetBValue(rgb)), g(GetGValue(rgb)), b(GetRValue(rgb)) {};
         Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255) : r(red), g(green), b(blue), a(alpha) {};
         uint8_t red() const noexcept { return r; };
         uint8_t green() const noexcept { return g; };
@@ -24,9 +24,9 @@ namespace Caelus
         void blue(uint8_t v) noexcept { b = v; };
         void alpha(uint8_t v) noexcept { a = v; };
         uint32_t rgb() const noexcept { return RGB(r, g, b); }
-        void rgb(uint32_t rgb) noexcept { r = GetRValue(rgb); g = GetGValue(rgb); b = GetBValue(rgb); }
+        void rgb(uint32_t rgb) noexcept { r = GetBValue(rgb); g = GetGValue(rgb); b = GetRValue(rgb); }
         uint32_t argb() const noexcept { return RGB(r, g, b) | a<<24; }
-        void argb(uint32_t argb) noexcept { r = GetRValue(argb); g = GetGValue(argb); b = GetBValue(argb); a = HIBYTE(argb >> 16); }
+        void argb(uint32_t argb) noexcept { r = GetBValue(argb); g = GetGValue(argb); b = GetRValue(argb); a = HIBYTE(argb >> 16); }
         static Color Parse(std::string_view const & spec);
 
     private:

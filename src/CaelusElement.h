@@ -8,6 +8,7 @@
 
 namespace Caelus
 {
+    constexpr static auto const kElementClass = L"Caelus_ELEMENT";
     LRESULT CaelusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
     class CaelusWindow;
@@ -16,6 +17,7 @@ namespace Caelus
     {
     public:
         // Painting
+        static void Register(HINSTANCE hInstance, wchar_t const * standardClass = nullptr, wchar_t const * caelusClass = nullptr, CaelusElementType const type = GENERIC);
         LRESULT Paint(HWND hwnd, HDC hdc);
         LRESULT WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
         HFONT GetHfont();
@@ -60,6 +62,71 @@ namespace Caelus
                 }
                 break;
             }
+
+            // Default styles
+            if constexpr (std::is_same_v<T, Color>)
+            {
+                switch (style)
+                {
+                case BACKGROUND_COLOR: { static std::optional<Color> v = 0xFFFFFF; return v; }
+                case BORDER_COLOR: { static std::optional<Color> v = 0; return v; }
+                case TEXT_COLOR: { static std::optional<Color> v = 0; return v; }
+                }
+            }
+            else if constexpr (std::is_same_v<T, Measure>)
+            {
+                switch (style)
+                {
+                case BORDER_RADIUS: { static std::optional<Measure> v = { Measure::Parse("0") }; return v; }
+                case BORDER_WIDTH: { static std::optional<Measure> v = { Measure::Parse("0") }; return v; }
+                case FONT_SIZE: { static std::optional<Measure> v = { Measure::Parse("12pt") }; return v; }
+                case PADDING: { static std::optional<Measure> v = { Measure::Parse("0") }; return v; }
+                }
+            }
+            else if constexpr (std::is_same_v<T, std::string>)
+            {
+                switch (style)
+                {
+                case FONT_FACE: { static std::optional<std::string> v = "Arial"; return v; }
+                }
+            }
+            else if constexpr (std::is_same_v<T, bool>)
+            {
+                switch (style)
+                {
+                case FONT_ITALIC: { static std::optional<bool> v = false; return v; }
+                }
+            }
+            else if constexpr (std::is_same_v<T, int>)
+            {
+                switch (style)
+                {
+                case FONT_WEIGHT: { static std::optional<int> v = FontWeight::REGULAR; return v; }
+                }
+            }
+            else if constexpr (std::is_same_v<T, Tether>)
+            {
+            }
+            else if constexpr (std::is_same_v<T, Edge>)
+            {
+                switch (style)
+                {
+                case TEXT_ALIGNH: { static std::optional<Edge> v = Edge::LEFT; return v; }
+                case TEXT_ALIGNV: { static std::optional<Edge> v = Edge::TOP; return v; }
+                }
+            }
+            else if constexpr (std::is_same_v<T, CaelusElementType>)
+            {
+                switch (style)
+                {
+                case ELEMENT_TYPE: { static std::optional<CaelusElementType> v = CaelusElementType::GENERIC; return v; }
+                }
+            }
+            else
+            {
+                static_assert(mxi::always_false<T>, "Unsupported type for GetStyle()");
+            }
+
             static std::optional<T> def{};
             return def;
         }
@@ -70,7 +137,7 @@ namespace Caelus
         Measure const & GetBorderRadius(Corner const corner) const { return GetStyle<Measure>(BORDER_RADIUS, corner).value(); }
         Measure const & GetBorderWidth(Edge const edge) const { return GetStyle<Measure>(BORDER_WIDTH, edge).value(); }
         Measure const & GetFontSize() const { return GetStyle<Measure>(FONT_SIZE).value(); }
-        InputType GetInputType() const { auto const & type = GetStyle<InputType>(INPUT_TYPE); return (type.has_value()) ? type.value() : NONE; }
+        CaelusElementType GetElementType() const { auto const & type = GetStyle<CaelusElementType>(ELEMENT_TYPE); return type.has_value() ? type.value() : GENERIC; }
         Measure const & GetPadding(Edge const edge) const { return GetStyle<Measure>(PADDING, edge).value(); }
         std::optional<Measure> const & GetSize(Dimension const dim) const { return GetStyle<Measure>(SIZE, dim); }
         std::optional<Tether> const & GetTether(Edge const edge) const { return GetStyle<Tether>(TETHER, edge); }
@@ -93,7 +160,7 @@ namespace Caelus
         void SetFontStyle(std::string_view const & style);
         void SetFontWeight(int const weight);
         void SetImage(HBITMAP imageHandle);
-        void SetInputType(std::string_view const & type);
+        void SetElementType(std::string_view const & type);
         void SetLabel(std::string_view const & label);
         void SetOpacity(uint8_t const opacity);
         void SetOpacity(double const opacity);
@@ -141,10 +208,13 @@ namespace Caelus
         ResolvedRect m_futureRect;
         HFONT m_hfont = NULL;
         HWND m_hwnd = 0;
-        WNDPROC m_originalWndProc = NULL;
 
     private:
+        CaelusElementType m_type = GENERIC;
         void PaintBackground(HDC hdc, RECT const & rectClient) const;
         void PaintBorder(HDC hdc, RECT const & rectClient, Edge const edge) const;
+        LRESULT CallStandardWndProc();
+        static WNDPROC StandardWndProc[CaelusElementType::last];
+        static wchar_t const * CaelusClassName[CaelusElementType::last];
     };
 }

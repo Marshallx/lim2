@@ -26,12 +26,12 @@ namespace Caelus
         RegisterClass(&wndclass);
     }
 
-    LRESULT CALLBACK CaelusWindow_WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+    LRESULT CaelusWindow::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
         //HDC hdc;
         //PAINTSTRUCT ps;
         //RECT rect;
-        switch (message)
+        switch (msg)
         {
         case WM_CREATE:
         case WM_PAINT:
@@ -43,44 +43,57 @@ namespace Caelus
             EndPaint(hwnd, &ps);
             */
 
-            return DefWindowProc(hwnd, message, wParam, lParam);
+            return DefWindowProc(hwnd, msg, wparam, lparam);
+
+        case WM_NCCREATE:
+            SetPropA(hwnd, "CaelusWindow", this);
+            m_hwnd = hwnd;
+            break;
+
+        case WM_SIZING:
+        {
+            auto r = (RECT *)lparam;
+            Relayout(r->right - r->left, r->bottom - r->top);
+            return 0;
+        }
+
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
         }
-        return DefWindowProc(hwnd, message, wParam, lParam);
+
+        return DefWindowProc(hwnd, msg, wparam, lparam);
     }
 
-    void CaelusWindow::SetDefaults()
+    LRESULT CALLBACK CaelusWindow_WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+    {
+        if (!IsWindow(hwnd)) return 0;
+
+        auto that = (CaelusWindow *)((msg != WM_NCCREATE)
+            ? GetPropA(hwnd, "CaelusWindow")
+            : ((CREATESTRUCTW *)lparam)->lpCreateParams
+        );
+
+        return that->WndProc(hwnd, msg, wparam, lparam);
+    }
+
+    void CaelusWindow::Init()
     {
         auto cp = std::make_shared<CaelusClass>("window", &m_definedClasses);
         auto c = cp.get();
         m_definedClasses.m_map["window"] = cp;
         m_class = c;
         c->SetElement(this);
-        // Styles
-        c->SetBackgroundColor(0xFFFFFF);
-        c->SetBorderColor(0);
-        c->SetBorderRadius("0");
-        c->SetBorderWidth("0");
-        c->SetFontFace("Arial");
-        c->SetFontSize("12pt");
-        c->SetFontStyle("normal");
-        c->SetFontWeight(REGULAR);
-        c->SetPadding("0");
-        c->SetTextAlignH(LEFT);
-        c->SetTextAlignV(TOP);
-        c->SetTextColor(0);
     }
 
     CaelusWindow::CaelusWindow() : CaelusElement("window")
     {
-        SetDefaults();
+        Init();
     }
 
     CaelusWindow::CaelusWindow(std::string_view const & CaelusSource) : CaelusElement("window")
     {
-        SetDefaults();
+        Init();
         CaelusParser parser(CaelusSource, m_definedClasses);
         BuildAll();
     }
@@ -101,7 +114,7 @@ namespace Caelus
         rewind(f);
         fread(CaelusSource.data(), sizeof(char), size, f);
 
-        SetDefaults();
+        Init();
         CaelusParser parser({ CaelusSource }, m_definedClasses);
         BuildAll();
     }
@@ -186,7 +199,7 @@ namespace Caelus
     {
         auto const & optTitle = GetLabel();
         auto const title = optTitle.has_value() ? optTitle.value() : std::string{};
-        HWND hwnd = CreateWindow(
+        auto hwnd = CreateWindow(
             kWindowClass,
             mxi::Utf16String(title).c_str(),
             WS_OVERLAPPEDWINDOW,
@@ -197,28 +210,12 @@ namespace Caelus
             NULL,
             NULL,
             hInstance,
-            NULL
+            this
         );
 
-        PrepareToComputeLayout();
+        if (!hwnd || hwnd != m_hwnd) MX_THROW("Failed to create element window!");
 
-        m_futureRect.SetEdge(TOP, 0);
-        m_futureRect.SetEdge(LEFT, 0);
-        m_futureRect.SetEdge(RIGHT, width);
-        m_futureRect.SetEdge(BOTTOM, height);
-
-        size_t previousUnresolvedCount = 0;
-        for(;;)
-        {
-            size_t currentUnresolvedCount = ComputeLayout();
-            if (currentUnresolvedCount == 0) break;
-            if (previousUnresolvedCount == currentUnresolvedCount)
-            {
-                MX_THROW("Failed to recalculate layout - cyclic dependency?");
-            }
-        }
-
-        CommitLayout(hInstance, hwnd);
+        Relayout(width, height);
 
         ShowWindow(hwnd, nCmdShow);
         UpdateWindow(hwnd);
@@ -237,5 +234,28 @@ namespace Caelus
         }
 
         return (int)msg.wParam;
+    }
+
+    void CaelusWindow::Relayout(int const width, int const height)
+    {
+        PrepareToComputeLayout();
+
+        m_futureRect.SetEdge(TOP, 0);
+        m_futureRect.SetEdge(LEFT, 0);
+        m_futureRect.SetEdge(RIGHT, width);
+        m_futureRect.SetEdge(BOTTOM, height);
+
+        size_t previousUnresolvedCount = 0;
+        for (;;)
+        {
+            size_t currentUnresolvedCount = ComputeLayout();
+            if (currentUnresolvedCount == 0) break;
+            if (previousUnresolvedCount == currentUnresolvedCount)
+            {
+                MX_THROW("Failed to recalculate layout - cyclic dependency?");
+            }
+        }
+
+        CommitLayout(GetModuleHandle(NULL), m_hwnd);
     }
 }

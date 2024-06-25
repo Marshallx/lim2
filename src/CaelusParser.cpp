@@ -199,7 +199,6 @@ namespace Caelus
                 else if (key == "font-face") c->SetFontFace(value);
                 else if (key == "font-size") c->SetFontSize(value);
                 else if (key == "height") c->SetHeight(value);
-                else if (key == "input-type") c->SetInputType(value);
                 else if (key == "label") c->SetLabel(value);
                 else if (key == "left") c->SetTether(LEFT, value);
                 //TODO else if (key == "max-width") c->SetMaxWidth(value);
@@ -211,6 +210,7 @@ namespace Caelus
                 else if (key == "padding") c->SetPadding(value);
                 else if (key == "right") c->SetTether(RIGHT, value);
                 else if (key == "top") c->SetTether(TOP, value);
+                else if (key == "type") c->SetElementType(value);
                 else if (key == "width") c->SetWidth(value);
                 else
                 {

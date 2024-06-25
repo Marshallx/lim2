@@ -7,6 +7,32 @@
 
 namespace Caelus
 {
+    WNDPROC CaelusElement::StandardWndProc[CaelusElementType::last] = { NULL };
+    wchar_t const * CaelusElement::CaelusClassName[CaelusElementType::last] = { nullptr };
+
+    void CaelusElement::Register(HINSTANCE hInstance, wchar_t const * standardClass, wchar_t const * caelusClass, CaelusElementType const type)
+    {
+        if (!standardClass)
+        {
+            Register(hInstance, L"STATIC", L"CAELUS_ELEMENT_GENERIC", CaelusElementType::GENERIC);
+            Register(hInstance, L"EDIT", L"CAELUS_ELEMENT_EDITBOX", CaelusElementType::EDITBOX);
+            Register(hInstance, L"BUTTON", L"CAELUS_ELEMENT_BUTTON", CaelusElementType::BUTTON);
+            Register(hInstance, L"BUTTON", L"CAELUS_ELEMENT_CHECKBOX", CaelusElementType::CHECKBOX);
+            Register(hInstance, L"BUTTON", L"CAELUS_ELEMENT_RADIO", CaelusElementType::RADIO);
+            Register(hInstance, L"COMBOBOX", L"CAELUS_ELEMENT_COMBOBOX", CaelusElementType::COMBOBOX);
+            Register(hInstance, L"LISTBOX", L"CAELUS_ELEMENT_LISTBOX", CaelusElementType::LISTBOX);
+            return;
+        }
+
+        auto wc = WNDCLASS{};
+        if (!GetClassInfo(hInstance, standardClass, &wc)) MX_THROW("Error getting standard class info");
+        StandardWndProc[type] = wc.lpfnWndProc;
+        CaelusClassName[type] = caelusClass;
+        wc.lpfnWndProc = CaelusElement_WndProc;
+        wc.lpszClassName = caelusClass;
+        if (!RegisterClass(&wc)) MX_THROW(std::format("Error registering class {}", mxi::Utf8String(caelusClass)));
+    }
+
     namespace
     {
 
@@ -231,27 +257,29 @@ namespace Caelus
         DeleteObject(brush);
     }
 
-    void CaelusElement::PaintBorder(HDC hdc, RECT const & rc, Edge const edge) const
+    void CaelusElement::PaintBorder(HDC hdc, RECT const & r, Edge const edge) const
     {
         if (edge == ALL_EDGES)
         {
-            PaintBorder(hdc, rc, TOP);
-            PaintBorder(hdc, rc, LEFT);
-            PaintBorder(hdc, rc, BOTTOM);
-            PaintBorder(hdc, rc, RIGHT);
+            PaintBorder(hdc, r, TOP);
+            PaintBorder(hdc, r, LEFT);
+            PaintBorder(hdc, r, BOTTOM);
+            PaintBorder(hdc, r, RIGHT);
             return;
         }
 
         if (!m_currentRect.HasBorder(edge)) return;
+        auto const thickness = m_currentRect.GetBorder(edge);
+        if (!thickness) return;
         auto brush = CreateSolidBrush(GetBorderColor(edge).rgb());
         SelectObject(hdc, brush);
 
         switch (edge)
         {
-        case TOP: PatBlt(hdc, rc.left, rc.top, rc.right - rc.left, m_currentRect.GetBorder(TOP), PATCOPY); break;
-        case LEFT: PatBlt(hdc, rc.left, rc.top, m_currentRect.GetBorder(LEFT), rc.bottom - rc.top, PATCOPY); break;
-        case BOTTOM: PatBlt(hdc, rc.left, rc.bottom - 1, rc.right - rc.left, m_currentRect.GetBorder(BOTTOM), PATCOPY); break;
-        case RIGHT: PatBlt(hdc, rc.right - 1, rc.top, m_currentRect.GetBorder(RIGHT), rc.bottom - rc.top, PATCOPY); break;
+        case TOP: PatBlt(hdc, r.left, r.top, r.right - r.left, thickness, PATCOPY); break;
+        case LEFT: PatBlt(hdc, r.left, r.top, thickness, r.bottom - r.top, PATCOPY); break;
+        case BOTTOM: PatBlt(hdc, r.left, r.bottom - thickness, r.right - r.left, thickness, PATCOPY); break;
+        case RIGHT: PatBlt(hdc, r.right - thickness, r.top, thickness, r.bottom - r.top, PATCOPY); break;
         }
 
         DeleteObject(brush);
@@ -360,17 +388,18 @@ namespace Caelus
 
     LRESULT CaelusElement::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
+        auto const type = m_type;
+        auto const CallStandardWndProc = [&]() { return CallWindowProc(StandardWndProc[type], hwnd, msg, wparam, lparam); };
+
         LONG full_style = GetWindowLongW(hwnd, GWL_STYLE);
         LONG style = full_style & SS_TYPEMASK;
-
-#define ORIGINAL m_originalWndProc(hwnd, msg, wparam, lparam)
 
         switch (msg)
         {
 
         case WM_CREATE:
         {
-            auto const result = ORIGINAL;
+            auto const result = CallStandardWndProc();
             if (!m_parent)
             {
                 // Creating outer window. Resize outer to fit inner
@@ -382,65 +411,68 @@ namespace Caelus
 
         case WM_NCCALCSIZE:
         {
-            if (wparam == TRUE) return ORIGINAL;
+            if (wparam == TRUE) return CallStandardWndProc();
             auto rect = (RECT *)lparam;
             rect->top += m_currentRect.GetNC(TOP);
             rect->left += m_currentRect.GetNC(LEFT);
-            rect->bottom += m_currentRect.GetNC(BOTTOM);
+            rect->bottom -= m_currentRect.GetNC(BOTTOM);
             rect->right -= m_currentRect.GetNC(RIGHT);
             return 0;
         }
 
         case WM_NCCREATE:
         {
-            SetPropA(hwnd, "elem", this);
-            m_originalWndProc = (WNDPROC)GetClassLongPtr(hwnd, GCLP_WNDPROC);
-            SetClassLongPtr(hwnd, GCLP_WNDPROC, (LONG_PTR)CaelusElement_WndProc);
-            return ORIGINAL;
+            SetPropA(hwnd, "CaelusElement", this);
+            m_hwnd = hwnd;
+            return CallStandardWndProc();
         }
 
         case WM_NCPAINT:
         {
-            //auto const result = ORIGINAL;
-            PAINTSTRUCT ps;
-            HDC hdc = wparam ? HDC(wparam) : BeginPaint(hwnd, &ps);
-            auto rect = RECT{};
-            GetWindowRect(hwnd, &rect);
-            PaintBackground(hdc, rect);
-            PaintBorder(hdc, rect, ALL_EDGES);
+            CallStandardWndProc();
+            auto rc = RECT{};
+            GetClientRect(hwnd, &rc);
+            auto dc = GetWindowDC(hwnd);
+            PaintBackground(dc, rc);
+            PaintBorder(dc, rc, ALL_EDGES);
+            //if (IsThemeBackgroundPartiallyTransparent(theme, part, state))
+            //    DrawThemeParentBackground(hwnd, dc, &r);
+            //DrawThemeBackground(theme, dc, part, state, &r, 0);
+            ReleaseDC(hwnd, dc);
             return 0;
         }
 
-        /*case WM_PAINT:
+        case WM_PAINT:
         {
+            return 0;
+            /*
             PAINTSTRUCT ps;
             RECT rect;
             GetClientRect(hwnd, &rect);
-            HDC hdc = wParam ? HDC(wParam) : BeginPaint(hwnd, &ps);
+            HDC hdc = wparam ? HDC(wparam) : BeginPaint(hwnd, &ps);
             HRGN hrgn = set_control_clipping(hdc, &rect);
-            elem->Paint(hwnd, hdc); break;
+            Paint(hwnd, hdc); break;
             SelectClipRgn(hdc, hrgn);
             if (hrgn) DeleteObject(hrgn);
-            if (!wParam) EndPaint(hwnd, &ps);
-        }*/
+            if (!wparam) EndPaint(hwnd, &ps);
+            */
+        }
 
         } // switch(msg)
 
-        return ORIGINAL;
-
-#undef ORIGINAL
+        return CallStandardWndProc();
     }
 
     LRESULT CaelusElement_WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
         if (!IsWindow(hwnd)) return 0;
 
-        auto elem = (CaelusElement *)((msg != WM_NCCREATE)
-            ? GetPropA(hwnd, "elem")
+        auto that = (CaelusElement *)((msg != WM_NCCREATE)
+            ? GetPropA(hwnd, "CaelusElement")
             : ((CREATESTRUCTW *)lparam)->lpCreateParams
             );
 
-        return elem->WndProc(hwnd, msg, wparam, lparam);
+        return that->WndProc(hwnd, msg, wparam, lparam);
     }
 
     void CaelusElement::Build()
@@ -472,11 +504,14 @@ namespace Caelus
 
     Resolved CaelusElement::ComputeEdge(Edge const edge)
     {
+        auto const dim = edgeToDimension(edge);
+        ComputeSize(dim);
         if (m_futureRect.HasEdge(edge)) return RESOLVED;
 
         auto const & optTether = GetTether(edge);
+        if (!optTether.has_value() && isFarEdge(edge)) return UNRESOLVED;
         auto const tether = optTether.has_value() ? optTether.value() : GetDefaultTether(edge);
-        auto const offset = MeasureToPixels(tether.offset, edgeToDimension(edge));
+        auto const offset = MeasureToPixels(tether.offset, dim);
         if (!offset.has_value()) return UNRESOLVED;
         int anchor = 0;
         int nc = 0;
@@ -634,26 +669,6 @@ namespace Caelus
         }
     }
 
-    wchar_t const * CaelusElement::GetWindowClass() const
-    {
-        static auto const kButton = L"BUTTON";
-        static auto const kComboBox = L"COMBOBOX";
-        static auto const kEdit = L"EDIT";
-        static auto const kListBox = L"LISTBOX";
-        static auto const kStatic = L"STATIC";
-        switch (GetInputType())
-        {
-        case InputType::NONE: return kStatic;
-        case InputType::BUTTON: return kButton;
-        case InputType::CHECKBOX: return kButton;
-        case InputType::COMBOBOX: return kComboBox;
-        case InputType::EDITBOX: return kEdit;
-        case InputType::LISTBOX: return kListBox;
-        case InputType::RADIO: return kButton;
-        }
-        return kStatic;
-    }
-
     void CaelusElement::Spawn(HINSTANCE hInstance, HWND outerWindow)
     {
         if (m_hwnd) MX_THROW("Element window already created!");
@@ -667,16 +682,19 @@ namespace Caelus
         case RIGHT: style |= ES_RIGHT; break;
         }
 
-        switch (GetInputType())
+        m_type = GetElementType();
+
+        switch (m_type)
         {
-        case CHECKBOX: style |= BS_CHECKBOX;
-        case RADIO: style |= BS_RADIOBUTTON;
+        case CHECKBOX: style |= BS_CHECKBOX; break;
+        case RADIO: style |= BS_RADIOBUTTON; break;
         }
 
         auto const & optLabel = GetLabel();
         auto const & label = optLabel.has_value() ? optLabel.value() : std::string{};
-        m_hwnd = CreateWindow(
-            GetWindowClass(),
+
+        auto hwnd = CreateWindow(
+            CaelusClassName[m_type],
             mxi::Utf16String(label).c_str(),
             style,
             m_currentRect.GetEdge(LEFT),
@@ -689,12 +707,8 @@ namespace Caelus
             this
         );
 
-        if (!m_hwnd) MX_THROW("Failed to create element window!");
+        if (!hwnd || hwnd != m_hwnd) MX_THROW("Failed to create element window!");
         UpdateFont();
-        Sleep(500);
-        auto rc = RECT{};
-        GetWindowRect(m_hwnd, &rc);
-        InvalidateRect(m_hwnd, &rc, true);
     }
 
     HFONT CaelusElement::GetHfont()

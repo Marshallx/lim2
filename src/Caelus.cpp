@@ -7,6 +7,7 @@ namespace Caelus
 {
     void Init(HINSTANCE hInstance)
     {
+        CaelusElement::Register(hInstance);
         CaelusWindow::Register(hInstance);
     }
 }
