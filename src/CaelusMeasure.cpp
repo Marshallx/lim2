@@ -61,6 +61,18 @@ namespace Caelus
         return MulDiv(lineHeight, getDpi(hwnd), 96);
     }
 
+    int getLineHeight(HFONT hfont)
+    {
+        OUTLINETEXTMETRIC tm = {};
+        auto const hdc = CreateCompatibleDC(NULL);
+        SelectObject(hdc, hfont);
+        auto const r = GetOutlineTextMetrics(hdc, sizeof(OUTLINETEXTMETRIC), &tm);
+        auto const lineHeight = (-tm.otmDescent) + tm.otmLineGap + tm.otmAscent;
+        auto const dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+        DeleteDC(hdc);
+        return MulDiv(lineHeight, dpi, 96);
+    }
+
     Edge keywordToEdge(std::string_view const & keyword)
     {
         switch (keyword[0])
@@ -326,9 +338,11 @@ namespace Caelus
         {
             m_edge[LEFT] = m_edge[RIGHT].value() - px;
         }
-        if (m_padd[LEFT].has_value() && m_padd[RIGHT].has_value())
+        if (m_padd[LEFT].has_value() && m_padd[RIGHT].has_value()
+            && m_bord[LEFT].has_value() && m_bord[RIGHT].has_value())
         {
-            m_innerSize[WIDTH] = px - m_padd[LEFT].value() - m_padd[RIGHT].value();
+            m_innerSize[WIDTH] = px - m_padd[LEFT].value() - m_padd[RIGHT].value()
+                - m_bord[LEFT].value() - m_bord[RIGHT].value();
         }
     }
 

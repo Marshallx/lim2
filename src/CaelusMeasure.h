@@ -114,6 +114,7 @@ namespace Caelus
     int getDpi(HWND hwnd);
     int getFontHeight(HWND hwnd);
     int getLineHeight(HWND hwnd);
+    int getLineHeight(HFONT hfont);
     bool isHEdge(Edge const side);
     bool isVEdge(Edge const side);
     bool isFarEdge(Edge const edge);

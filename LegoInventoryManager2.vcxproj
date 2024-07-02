@@ -150,7 +150,7 @@
     <ClInclude Include="src\CaelusElement.h" />
     <ClInclude Include="src\CaelusClass.h" />
     <ClInclude Include="src\CaelusMeasure.h" />
-    <ClInclude Include="src\CaelusParser.h" />
+    <ClInclude Include="src\jaml.h" />
     <ClInclude Include="src\CaelusWindow.h" />
     <ClInclude Include="src\LegoInventoryManager2.h" />
     <ClInclude Include="src\Limb.h" />
@@ -170,7 +170,7 @@
     <ClCompile Include="src\CaelusElement.cpp" />
     <ClCompile Include="src\CaelusClass.cpp" />
     <ClCompile Include="src\CaelusMeasure.cpp" />
-    <ClCompile Include="src\CaelusParser.cpp" />
+    <ClCompile Include="src\jaml.cpp" />
     <ClCompile Include="src\CaelusWindow.cpp" />
     <ClCompile Include="src\LegoInventoryManager2.cpp" />
     <ClCompile Include="src\Limb.cpp" />

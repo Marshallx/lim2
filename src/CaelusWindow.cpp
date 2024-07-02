@@ -47,7 +47,7 @@ namespace Caelus
 
         case WM_NCCREATE:
             SetPropA(hwnd, "CaelusWindow", this);
-            m_hwnd = hwnd;
+            m_outerHwnd = hwnd;
             break;
 
         case WM_SIZING:
@@ -94,7 +94,7 @@ namespace Caelus
     CaelusWindow::CaelusWindow(std::string_view const & CaelusSource) : CaelusElement("window")
     {
         Init();
-        CaelusParser parser(CaelusSource, m_definedClasses);
+        JamlParser parser(CaelusSource, m_definedClasses);
         BuildAll();
     }
 
@@ -115,7 +115,7 @@ namespace Caelus
         fread(CaelusSource.data(), sizeof(char), size, f);
 
         Init();
-        CaelusParser parser({ CaelusSource }, m_definedClasses);
+        JamlParser parser({ CaelusSource }, m_definedClasses);
         BuildAll();
     }
 
@@ -199,21 +199,22 @@ namespace Caelus
     {
         auto const & optTitle = GetLabel();
         auto const title = optTitle.has_value() ? optTitle.value() : std::string{};
+
         auto hwnd = CreateWindow(
             kWindowClass,
             mxi::Utf16String(title).c_str(),
-            WS_OVERLAPPEDWINDOW,
-            x,
-            y,
-            width,
-            height,
+            WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+            x == -1 ? 100 : x,
+            y == -1 ? 100 : y,
+            width == -1 ? 640 : width,
+            height == -1 ? 480 : height,
             NULL,
             NULL,
             hInstance,
             this
         );
 
-        if (!hwnd || hwnd != m_hwnd) MX_THROW("Failed to create element window!");
+        if (!hwnd || hwnd != m_outerHwnd) MX_THROW("Failed to create element window!");
 
         Relayout(width, height);
 
@@ -242,8 +243,10 @@ namespace Caelus
 
         m_futureRect.SetEdge(TOP, 0);
         m_futureRect.SetEdge(LEFT, 0);
-        m_futureRect.SetEdge(RIGHT, width);
-        m_futureRect.SetEdge(BOTTOM, height);
+        auto r = RECT{};
+        GetClientRect(m_outerHwnd, &r);
+        if (width != -1) m_futureRect.SetEdge(RIGHT, r.right);
+        if (height != -1) m_futureRect.SetEdge(BOTTOM, r.bottom);
 
         size_t previousUnresolvedCount = 0;
         for (;;)
@@ -254,8 +257,14 @@ namespace Caelus
             {
                 MX_THROW("Failed to recalculate layout - cyclic dependency?");
             }
+            previousUnresolvedCount = currentUnresolvedCount;
         }
 
-        CommitLayout(GetModuleHandle(NULL), m_hwnd);
+        //auto hdwp = BeginDeferWindowPos(10);
+        /*hdwp = */CommitLayout(GetModuleHandle(NULL), /*hdwp*/NULL, m_outerHwnd);
+        //if (!hdwp || !EndDeferWindowPos(hdwp))
+        //{
+            //MX_THROW(std::format("EndDeferWindowPos failed: {}", GetLastError()));
+        //}
     }
 }

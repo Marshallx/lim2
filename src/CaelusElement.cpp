@@ -403,7 +403,7 @@ namespace Caelus
             if (!m_parent)
             {
                 // Creating outer window. Resize outer to fit inner
-                CaelusWindow::FitToInner(hwnd);
+                //CaelusWindow::FitToInner(hwnd);
             }
 
             return result;
@@ -411,13 +411,21 @@ namespace Caelus
 
         case WM_NCCALCSIZE:
         {
-            if (wparam == TRUE) return CallStandardWndProc();
-            auto rect = (RECT *)lparam;
+            RECT * rect = nullptr;
+            if (wparam == TRUE)
+            {
+                auto params = (NCCALCSIZE_PARAMS *)lparam;
+                rect = &(params->rgrc[0]);
+            }
+            else
+            {
+                rect = (RECT *)lparam;
+            }
             rect->top += m_currentRect.GetNC(TOP);
             rect->left += m_currentRect.GetNC(LEFT);
             rect->bottom -= m_currentRect.GetNC(BOTTOM);
             rect->right -= m_currentRect.GetNC(RIGHT);
-            return 0;
+            return wparam ? WVR_REDRAW : 0;
         }
 
         case WM_NCCREATE:
@@ -431,7 +439,8 @@ namespace Caelus
         {
             CallStandardWndProc();
             auto rc = RECT{};
-            GetClientRect(hwnd, &rc);
+            GetWindowRect(hwnd, &rc);
+            OffsetRect(&rc, -rc.left, -rc.top);
             auto dc = GetWindowDC(hwnd);
             PaintBackground(dc, rc);
             PaintBorder(dc, rc, ALL_EDGES);
@@ -444,7 +453,7 @@ namespace Caelus
 
         case WM_PAINT:
         {
-            return 0;
+            return CallStandardWndProc();
             /*
             PAINTSTRUCT ps;
             RECT rect;
@@ -480,6 +489,7 @@ namespace Caelus
         auto window = GetWindow();
         for (auto & cp : window->GetClassMap().m_map)
         {
+            m_type = GetElementType();
             auto c = cp.second.get();
             if (c->GetElement()) continue;
             if (c->GetName().starts_with('.')) continue;
@@ -504,6 +514,7 @@ namespace Caelus
 
     Resolved CaelusElement::ComputeEdge(Edge const edge)
     {
+        if (m_futureRect.HasEdge(edge)) return RESOLVED;
         auto const dim = edgeToDimension(edge);
         ComputeSize(dim);
         if (m_futureRect.HasEdge(edge)) return RESOLVED;
@@ -514,33 +525,27 @@ namespace Caelus
         auto const offset = MeasureToPixels(tether.offset, dim);
         if (!offset.has_value()) return UNRESOLVED;
         int anchor = 0;
-        int nc = 0;
-        if (tether.id.empty() || tether.id == m_parent->m_name)
+        CaelusElement * sibling = nullptr;
+        if (tether.id == ".") sibling = GetSibling(edge);
+        else if (tether.id.empty() || tether.id == m_parent->m_name) sibling = m_parent;
+        else sibling = GetSibling(tether.id);
+
+        if (sibling == m_parent)
         {
-            // Tether to parent (interior)
-            if (m_parent->ComputeNC(tether.edge) == UNRESOLVED) return UNRESOLVED;
-            nc = m_parent->m_futureRect.GetNC(tether.edge);
-            if (isFarEdge(tether.edge))
+            // Tether to parent interior
+            if (isFarEdge(edge))
             {
-                if (m_parent->ComputeSize(edgeToDimension(tether.edge)) == UNRESOLVED) return UNRESOLVED;
-                anchor = m_parent->m_futureRect.GetSize(edgeToDimension(tether.edge)) - nc - 1;
-            }
-            else
-            {
-                anchor = nc;
+                if (m_parent->ComputeSize(dim) == UNRESOLVED) return UNRESOLVED;
+                anchor = m_parent->m_futureRect.GetSize(dim) - 1;
             }
         }
         else
         {
-            // Tether to sibling (adjacent or named) (exterior)
+            // Tether to sibling (adjacent or named) exterior
             auto sibling = (tether.id == ".") ? GetSibling(edge) : GetSibling(tether.id);
-            auto otherEdge = (tether.id == "." && sibling == m_parent) ? edge : tether.edge;
-            if (sibling != m_parent || isFarEdge(otherEdge))
-            {
-                if (sibling->ComputeEdge(otherEdge) == UNRESOLVED) return UNRESOLVED;
-                anchor = sibling->m_futureRect.GetEdge(otherEdge);
-                if (isFarEdge(otherEdge)) anchor -= 1;
-            }
+            if (sibling->ComputeEdge(tether.edge) == UNRESOLVED) return UNRESOLVED;
+            anchor = sibling->m_futureRect.GetEdge(tether.edge);
+            if (isFarEdge(tether.edge)) anchor -= 1;
         }
 
         m_futureRect.SetEdge(edge, anchor + offset.value());
@@ -615,6 +620,10 @@ namespace Caelus
 
         // Auto size (from content)
         int furthestCoord = 0;
+        if (m_type != GENERIC)
+        {
+            furthestCoord = getLineHeight(GetHfont());
+        }
         for (auto & cp : m_children)
         {
             auto child = cp.get();
@@ -642,7 +651,7 @@ namespace Caelus
         }
     }
 
-    void CaelusElement::CommitLayout(HINSTANCE hInstance, HWND outerWindow)
+    HDWP CaelusElement::CommitLayout(HINSTANCE hInstance, HDWP hdwp, HWND outerWindow)
     {
         m_currentRect = m_futureRect;
 
@@ -652,28 +661,33 @@ namespace Caelus
         }
         else
         {
-            SetWindowPos(
+            auto flags = SWP_NOZORDER;
+            //if (outerWindow) flags |= SWP_NOMOVE;
+            /*hdwp = */SetWindowPos(
+                //hdwp,
                 m_hwnd,
                 NULL,
                 m_currentRect.GetEdge(LEFT),
                 m_currentRect.GetEdge(TOP),
                 m_currentRect.GetSize(WIDTH),
                 m_currentRect.GetSize(HEIGHT),
-                SWP_NOZORDER
+                flags
             );
         }
 
         for (auto & child : m_children)
         {
-            child.get()->CommitLayout(hInstance);
+            hdwp = child.get()->CommitLayout(hInstance, hdwp);
         }
+
+        return hdwp;
     }
 
     void CaelusElement::Spawn(HINSTANCE hInstance, HWND outerWindow)
     {
         if (m_hwnd) MX_THROW("Element window already created!");
 
-        DWORD style = WS_CHILD | WS_VISIBLE;
+        DWORD style = WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN;
 
         switch (GetTextAlignH())
         {
@@ -681,8 +695,6 @@ namespace Caelus
         case ALL_EDGES: style |= ES_CENTER; break;
         case RIGHT: style |= ES_RIGHT; break;
         }
-
-        m_type = GetElementType();
 
         switch (m_type)
         {
@@ -752,14 +764,15 @@ namespace Caelus
 
         case PT:
         {
+            if (dim != HEIGHT) break;
             auto hdc = GetDC(m_hwnd);
             return MulDiv((int)measure.value, GetDeviceCaps(hdc, LOGPIXELSY), 72);
         }
 
         case PC:
-            if (m_futureRect.GetSize(dim))
+            if (m_parent && m_parent->m_futureRect.HasSize(dim))
             {
-                return static_cast<int>(static_cast<double>(m_futureRect.GetSize(dim)) * measure.value);
+                return static_cast<int>(static_cast<double>(m_parent->m_futureRect.GetSize(dim)) * measure.value);
             }
             return std::nullopt;
         }

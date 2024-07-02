@@ -51,7 +51,9 @@ namespace Caelus
 
                 switch (style)
                 {
+                case BORDER_WIDTH:
                 case LABEL:
+                case PADDING:
                 case SIZE:
                 case TETHER:
                     // Uninheritable
@@ -195,7 +197,7 @@ namespace Caelus
         std::optional<int> MeasureToPixels(Measure const & measure, Dimension const dim) const;
 
         // Move futureRect to currentRect and redraw everything
-        void CommitLayout(HINSTANCE hInstance, HWND outerWindow = NULL);
+        HDWP CommitLayout(HINSTANCE hInstance, HDWP hdwp, HWND outerWindow = NULL);
 
         CaelusElement * GetSibling(std::string_view const & name) const;
         CaelusElement * GetSibling(Edge const edge) const;

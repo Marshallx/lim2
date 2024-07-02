@@ -48,7 +48,7 @@
     <ClInclude Include="src\MxiLogging.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\CaelusParser.h">
+    <ClInclude Include="src\jaml.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\CaelusWindow.h">
@@ -98,7 +98,7 @@
     <ClCompile Include="src\MxiLogging.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\CaelusParser.cpp">
+    <ClCompile Include="src\jaml.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\CaelusWindow.cpp">
