@@ -14,6 +14,7 @@ namespace jaml
         std::vector<Element> children = {};
         std::string type = {};
         std::vector<std::pair<std::string, std::string>> attributes = {};
+        std::string text = {};
     };
 
     class Doc

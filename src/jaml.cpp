@@ -25,7 +25,8 @@ namespace jaml
         void EoiCheck(std::string_view const & expected) const;
         void EoiCheck(char const expected) const;
         void Eat(std::string_view const & expected);
-        bool LookAhead(std::string_view const & expected) const;
+        void RememberPos(bool const stash = true);
+        bool LookAhead(std::string_view const & expected, bool const eatIfFound = false);
         void EatWhitespace();
         void EatCommentsAndWhitespace();
         char NextChar();
@@ -36,6 +37,24 @@ namespace jaml
         void ParseContent(Element & e);
         Element ParseTag();
     };
+
+    void JamlParser::RememberPos(bool const stash)
+    {
+        static size_t savedPos = 0;
+        static size_t savedCol = 0;
+        static size_t savedLine = 0;
+        if (stash)
+        {
+            savedPos = pos;
+            savedCol = col;
+            savedLine = line;
+            return;
+        }
+        pos = savedPos;
+        col = savedCol;
+        line = savedLine;
+        c = source[pos];
+    }
 
     void JamlParser::Error(std::string_view const & msg) const
     {
@@ -93,7 +112,7 @@ namespace jaml
         }
     }
 
-    bool JamlParser::LookAhead(std::string_view const & expected) const
+    bool JamlParser::LookAhead(std::string_view const & expected, bool eatIfFound)
     {
         auto const start = pos + 1;
         auto const end = start + expected.size();
@@ -101,7 +120,9 @@ namespace jaml
         auto look = std::string_view{
             source.begin() + start, source.begin() + end
         };
-        return (look == expected);
+        if (look != expected) return false;
+        if (eatIfFound) Eat(expected);
+        return true;
     }
 
     void JamlParser::EatCommentsAndWhitespace()
@@ -111,7 +132,7 @@ namespace jaml
             EatWhitespace();
             if (c != '<') return;
             if (!LookAhead("!--")) return;
-            auto const sub = std::string_view{ source.begin() + pos + 3 };
+            auto const sub = source.substr(pos + 3);
             auto n = sub.find("-->");
             if (n == std::string::npos) Error("Unterminated comment.");
             n += 3;
@@ -138,7 +159,7 @@ namespace jaml
     JamlParser::JamlParser(std::string_view const & source, Doc & doc) : source(source)
     {
         size = source.size();
-        if (!size) MX_THROW("Empty document");
+        if (!size) Error("Empty document");
         c = source[0];
         EatCommentsAndWhitespace();
         auto tag = ParseTag();
@@ -148,7 +169,7 @@ namespace jaml
                 tag.attributes[0].first != "jaml" ||
                 tag.attributes[0].second != "")
             {
-                MX_THROW("Unsupported doctype");
+                Error("Unsupported doctype");
             }
             EatCommentsAndWhitespace();
             tag = ParseTag();
@@ -267,100 +288,69 @@ namespace jaml
         return e;
     }
 
-    void JamlParser::ParseContent(Element * e)
+    void JamlParser::ParseContent(Element & e)
     {
-        //TODO
-        read all child nodes and (ugh) text nodes, etc
-    }
-
-    void JamlParser::ParseSection(CaelusClassMap & classes)
-    {
-        Expect('[');
-        ++col;
-
-        // Read section name
-        auto name = std::string{};
-        auto start = col;
-        EatWhitespace();
-        for(;; ++col)
+        auto start = 0;
+        RememberPos(true);
+        while (NextChar())
         {
-            EoiCheck(']');
-            if (IsWhitespace())
+            if (c == '<')
             {
-                EatWhitespace();
-                Expect(']');
-            }
-            if (Peek() != ']') continue;
-            name = linetext.substr(start, col - 1);
-            ++col;
-            break;
-        }
-        EatWhitespace();
-        Expect(0);
-        auto cp = classes.m_map.contains(name.c_str()) ? classes.m_map[name] : std::make_shared<CaelusClass>(CaelusClass{name, &classes});
-        classes.m_map[name] = cp;
-        auto c = cp.get();
-        if (!name.starts_with('.')) c->SetParentName("window");
-
-        while (lineno < lines.size())
-        {
-            NextLine();
-            EatWhitespace();
-            switch (Peek())
-            {
-            case 0: continue;
-            case '[': return;
-            }
-            auto saveCol = col;
-            auto const key = mxi::trim(ParseKey());
-            Expect('=');
-            ++col;
-            EatWhitespace();
-            saveCol = col;
-            auto const value = mxi::trim(ParseValue());
-            EatWhitespace();
-            Expect(0);
-            try
-            {
-                if (key == "parent") c->SetParentName(value);
-                else if (key == "background-color") c->SetBackgroundColor(value);
-                else if (key == "border") c->SetBorder(value);
-                else if (key == "border-bottom") c->SetBorder(value, BOTTOM);
-                else if (key == "border-left") c->SetBorder(value, LEFT);
-                else if (key == "border-right") c->SetBorder(value, RIGHT);
-                else if (key == "border-top") c->SetBorder(value, TOP);
-                else if (key == "bottom") c->SetTether(BOTTOM, value);
-                else if (key == "class") c->AddClassNames(value);
-                else if (key == "text-color" || key == "color") c->SetTextColor(value);
-                else if (key == "font-face") c->SetFontFace(value);
-                else if (key == "font-size") c->SetFontSize(value);
-                else if (key == "height") c->SetHeight(value);
-                else if (key == "label") c->SetLabel(value);
-                else if (key == "left") c->SetTether(LEFT, value);
-                //TODO else if (key == "max-width") c->SetMaxWidth(value);
-                //TODO else if (key == "min-width") c->SetMinWidth(value);
-                else if (key == "padding-bottom") c->SetPadding(value, BOTTOM);
-                else if (key == "padding-left") c->SetPadding(value, LEFT);
-                else if (key == "padding-right") c->SetPadding(value, RIGHT);
-                else if (key == "padding-top") c->SetPadding(value, TOP);
-                else if (key == "padding") c->SetPadding(value);
-                else if (key == "right") c->SetTether(RIGHT, value);
-                else if (key == "top") c->SetTether(TOP, value);
-                else if (key == "type") c->SetElementType(value);
-                else if (key == "width") c->SetWidth(value);
-                else
+                if (start)
                 {
-                    MX_THROW("Unknown property name"); // key appended below
+                    auto text = Element{};
+                    text.text = source.substr(start, pos - start);
+                    e.children.push_back(text);
                 }
+                if (LookAhead(std::format("/{}>", e.type), true)) return;
+                if (LookAhead("/")) Error("Unexpected closing tag.");
+                e.children.push_back(ParseTag());
+                continue;
             }
-            catch (std::exception const & err)
-            {
-                col = saveCol;
-                Error(std::format("Error processing property \"{}\"=\"{}\" - {}", key, value, err.what()));
-            }
+            if (!start) start = pos;
         }
+        RememberPos(false);
+        Error("Unterminated element.");
     }
 
-
-
+    /*
+        try
+        {
+            if (key == "parent") c->SetParentName(value);
+            else if (key == "background-color") c->SetBackgroundColor(value);
+            else if (key == "border") c->SetBorder(value);
+            else if (key == "border-bottom") c->SetBorder(value, BOTTOM);
+            else if (key == "border-left") c->SetBorder(value, LEFT);
+            else if (key == "border-right") c->SetBorder(value, RIGHT);
+            else if (key == "border-top") c->SetBorder(value, TOP);
+            else if (key == "bottom") c->SetTether(BOTTOM, value);
+            else if (key == "class") c->AddClassNames(value);
+            else if (key == "text-color" || key == "color") c->SetTextColor(value);
+            else if (key == "font-face") c->SetFontFace(value);
+            else if (key == "font-size") c->SetFontSize(value);
+            else if (key == "height") c->SetHeight(value);
+            else if (key == "label") c->SetLabel(value);
+            else if (key == "left") c->SetTether(LEFT, value);
+            //TODO else if (key == "max-width") c->SetMaxWidth(value);
+            //TODO else if (key == "min-width") c->SetMinWidth(value);
+            else if (key == "padding-bottom") c->SetPadding(value, BOTTOM);
+            else if (key == "padding-left") c->SetPadding(value, LEFT);
+            else if (key == "padding-right") c->SetPadding(value, RIGHT);
+            else if (key == "padding-top") c->SetPadding(value, TOP);
+            else if (key == "padding") c->SetPadding(value);
+            else if (key == "right") c->SetTether(RIGHT, value);
+            else if (key == "top") c->SetTether(TOP, value);
+            else if (key == "type") c->SetElementType(value);
+            else if (key == "width") c->SetWidth(value);
+            else
+            {
+                MX_THROW("Unknown property name"); // key appended below
+            }
+        }
+        catch (std::exception const & err)
+        {
+            col = saveCol;
+            Error(std::format("Error processing property \"{}\"=\"{}\" - {}", key, value, err.what()));
+        }
+     */
 }
