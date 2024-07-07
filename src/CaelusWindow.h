@@ -1,5 +1,6 @@
 #pragma once
 
+#include "jaml.h"
 #include "CaelusClass.h"
 #include "CaelusElement.h"
 
@@ -26,13 +27,12 @@ namespace Caelus
     private:
         CaelusWindow(CaelusWindow const &) = delete;
         void Init();
-        void BuildAll();
+        void Validation();
         void FitToOuter();
         bool m_throwOnUnresolved = true;
         CaelusClassMap m_definedClasses = {};
         bool m_resizable = false;
         HWND m_outerHwnd = 0;
-
     };
 
 }

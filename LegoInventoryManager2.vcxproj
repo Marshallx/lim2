@@ -152,6 +152,7 @@
     <ClInclude Include="src\CaelusMeasure.h" />
     <ClInclude Include="src\jaml.h" />
     <ClInclude Include="src\CaelusWindow.h" />
+    <ClInclude Include="src\jass.h" />
     <ClInclude Include="src\LegoInventoryManager2.h" />
     <ClInclude Include="src\Limb.h" />
     <ClInclude Include="resource\Resource.h" />
@@ -172,6 +173,7 @@
     <ClCompile Include="src\CaelusMeasure.cpp" />
     <ClCompile Include="src\jaml.cpp" />
     <ClCompile Include="src\CaelusWindow.cpp" />
+    <ClCompile Include="src\jass.cpp" />
     <ClCompile Include="src\LegoInventoryManager2.cpp" />
     <ClCompile Include="src\Limb.cpp" />
     <ClCompile Include="src\MxiLogging.cpp" />

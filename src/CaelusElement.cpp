@@ -245,6 +245,51 @@ namespace Caelus
         m_children.clear();
     }
 
+    CaelusElement const * CaelusElement::find(size_t uid) const
+    {
+        auto stack = std::vector<CaelusElement const *>{ this };
+        while (!stack.empty())
+        {
+            auto const parent = stack.back();
+            stack.pop_back();
+            for (auto const & child : parent->children)
+            {
+                if (child.uid == uid) return &child;
+                if (child.children.size()) stack.push_back(&child);
+            }
+        }
+        return nullptr;
+    }
+
+    CaelusElement const * CaelusElement::find(std::string_view const & search) const
+    {
+        if (search.empty()) return nullptr;
+        auto const c = search[0];
+        auto stack = std::vector<CaelusElement const *>{ this };
+        while (!stack.empty())
+        {
+            auto const parent = stack.back();
+            stack.pop_back();
+            for (auto const & child : parent->children)
+            {
+                switch (c)
+                {
+                case '#':
+                    if (child.attributes.contains("id") && child.attributes.at("id") == search) return &child;
+                    break;
+                case '.':
+                    MX_THROW("Search on classes unsupported");
+                    break;
+                default:
+                    if (child.type == search) return &child;
+                    break;
+                }
+                if (child.children.size()) stack.push_back(&child);
+            }
+        }
+        return nullptr;
+    }
+
 
     // =-=-=-=-=-=-=-=-= Layout and painting =-=-=-=-=-=-=-=-=
 
@@ -482,24 +527,6 @@ namespace Caelus
             );
 
         return that->WndProc(hwnd, msg, wparam, lparam);
-    }
-
-    void CaelusElement::Build()
-    {
-        auto window = GetWindow();
-        for (auto & cp : window->GetClassMap().m_map)
-        {
-            m_type = GetElementType();
-            auto c = cp.second.get();
-            if (c->GetElement()) continue;
-            if (c->GetName().starts_with('.')) continue;
-            if (c->GetParentName() != m_name) continue;
-            auto e = AppendChild(c->GetName());
-            c->SetElement(e);
-            e->m_class = c;
-            e->m_parent = this;
-            e->Build();
-        }
     }
 
     Resolved CaelusElement::ComputeBorder(Edge const edge)
@@ -779,5 +806,7 @@ namespace Caelus
 
         MX_THROW("Unsupported unit for conversion to pixels.");
     }
+
+    
 
 }

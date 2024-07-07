@@ -15,6 +15,8 @@ namespace Caelus
 
     class CaelusElement
     {
+        friend class CaelusWindow;
+        friend class JamlParser;
     public:
         // Painting
         static void Register(HINSTANCE hInstance, wchar_t const * standardClass = nullptr, wchar_t const * caelusClass = nullptr, CaelusElementType const type = GENERIC);
@@ -133,6 +135,9 @@ namespace Caelus
             return def;
         }
 
+        CaelusElement const * find(size_t uid) const;
+        CaelusElement const * find(std::string_view const & search) const;
+
         Color const & GetBackgroundColor() const { return GetStyle<Color>(BACKGROUND_COLOR).value(); }
         Color const & GetBorderColor(Edge const edge) const { return GetStyle<Color>(BORDER_COLOR, edge).value(); }
         Color const & GetTextColor() const { return GetStyle<Color>(TEXT_COLOR).value(); }
@@ -180,7 +185,6 @@ namespace Caelus
 
     protected:
         CaelusElement() = default;
-        void Build();
         void Spawn(HINSTANCE hInstance, HWND outerWindow = NULL);
         void PrepareToComputeLayout();
         wchar_t const * GetWindowClass() const;
@@ -202,7 +206,7 @@ namespace Caelus
         CaelusElement * GetSibling(std::string_view const & name) const;
         CaelusElement * GetSibling(Edge const edge) const;
 
-        std::vector<std::shared_ptr<CaelusElement>> m_children = {};
+        std::vector<CaelusElement> m_children = {};
         CaelusClass * m_class = nullptr;
         std::string m_name;
         CaelusElement * m_parent = nullptr;
@@ -211,8 +215,13 @@ namespace Caelus
         HFONT m_hfont = NULL;
         HWND m_hwnd = 0;
 
+
     private:
-        CaelusElementType m_type = GENERIC;
+        std::unordered_map<char const *, std::string> m_attributes = {};
+        std::unordered_map<char const *, std::string> m_styles = {};
+        std::string m_tagname = {};
+        std::string m_text = {};
+
         void PaintBackground(HDC hdc, RECT const & rectClient) const;
         void PaintBorder(HDC hdc, RECT const & rectClient, Edge const edge) const;
         LRESULT CallStandardWndProc();

@@ -1,0 +1,117 @@
+<jaml>
+
+    <head>
+        <title>Lego Inventory Manager 2</title>
+        
+        <style>
+            #outer
+            {
+                background-color: lavenderblush;
+                padding=0.5em
+            }
+            
+            #navi
+            {
+                left: 0;
+                right: 0;
+                height: 5em;
+            }
+            
+            .navi-button
+            {
+                margin-left: 1em;
+                margin-right: 1em;
+                width: 6em;
+            }
+            
+            .rhs
+            {
+                float: right;
+            }
+            
+            #query
+            {
+                padding: 0.2em;
+                background-color: aliceblue;
+            }
+            
+            #searchBox
+            {
+                width: 20em;
+                border: 2px gray solid;
+            }
+            
+            #btnSearch
+            {
+                margin-left: 0.2em;
+                width: 1em;
+                height: 1em;
+            }
+        </style>
+        
+    </head>
+    
+    <body>
+    
+        <div id="outer">
+            
+            <div id="navi">
+                <input class="navi-button" type="button" id="btnSets" value="Sets"/>
+                <input class="navi-button" type="button" id="btnParts" value="Parts"/>
+                <input class="navi-button" type="button" id="btnSummary" value="Summary"/>
+                <input class="navi-button" type="button" id="btnExport" value="Export Wanted List"/>
+                <input class="navi-button" type="button" id="btnRecalc" value="Recalcualte Wastage"/>
+                <input class="navi-button" type="button" id="btnUpdate" value="Update Catalog"/>
+                <input class="navi-button" type="button" id="btnAdd" value="Add Part"/>
+                <input class="navi-button rhs" type="button" id="btnSave" value="Save"/>
+                <input class="navi-button rhs" type="button" id="btnRevert" value="Revert"/>
+            </div>
+            
+            <div id="query">
+                <input type="text" id="searchBox" />
+                <input type="button" id="btnSearch" value="Search" />
+                <div id="queryOptions">
+                    <input type="text" id="textSpecificSets" label="From specific sets:" />
+                    <input type="checkbox" id="cboxInventoryRecs" label="Show set inventory records" />
+                    <input type="text" id="textLastChecked" label="Last checked older than:\nYYYY-MM-DD[ HH:mm]" />
+                    <input type="checkbox" id="cboxExcludeUnchecked" label="Exclude unchecked" />
+                    <input type="checkbox" id="cboxExcludeMinifigs" label="Exclude minifigs" />
+                    <input type="checkbox" id="cboxHideFulfilled" label="Hide fulfilled parts" />
+                    <input type="checkbox" id="cboxHideIgnored" label="Hide ignored parts" />
+                    <input type="checkbox" id="cboxFindFlagged" label="Find flagged parts" />
+                    <input type="checkbox" id="cboxFindImages" label="Find missing images" />
+                    <input type="text" id="textPartsPerPage" label="Parts per page:" value="50" />
+                    <select id="selectOrderBy">
+                        <option value="N">Part No.</option>
+                        <option value="D">Description</option>
+                        <option value="C">Last Checked</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="page-nav-top">
+                <input class="page-button page-first" type="button" value="First" />
+                <input class="page-button page-prev" type="button" value="Previous" />
+                <select class="page-dropdown">
+                    <option value="1">1</option>
+                </select>
+                <input class="page-button page-next" type="button" value="Next" />
+                <input class="page-button page-last" type="button" value="Last" />
+            </div>
+            
+            <div id="results">
+            </div>
+            
+            <div id="page-nav-bottom">
+                <input class="page-button page-first" type="button" value="First" />
+                <input class="page-button page-prev" type="button" value="Previous" />
+                <select class="page-dropdown">
+                    <option value="1">1</option>
+                </select>
+                <input class="page-button page-next" type="button" value="Next" />
+                <input class="page-button page-last" type="button" value="Last" />
+            </div>
+        </div>
+    
+    </body>
+</jaml>

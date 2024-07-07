@@ -3,12 +3,37 @@
 #include "MxiLogging.h"
 #include "MxiUtils.h"
 
-#include "jaml.h"
-#include "CaelusElement.h"
+#include "jass.h"
 
-namespace Caelus
+namespace jass
 {
-    void JamlParser::RememberPos(bool const stash)
+    class JassParser
+    {
+    public:
+        JassParser(std::string_view const & source, std::vector<Rule> & rules);
+        std::string_view const & source;
+        char c = 0;
+        size_t size;
+        size_t pos = 0;
+        size_t col = 0;
+        size_t line = 0;
+
+        void Error(std::string_view const & msg) const;
+        void Expect(char const expected) const;
+        void Eat(std::string_view const & expected);
+        void RememberPos(bool const stash = true);
+        bool LookAhead(std::string_view const & expected, bool const eatIfFound = false);
+        void EatWhitespace();
+        void EatCommentsAndWhitespace();
+        char NextChar();
+        const char * ValidateProperty(std::string_view const & k) const;
+        std::string_view ParseSelectors();
+        std::string_view ParseKey();
+        std::string_view ParseValue();
+        Rule ParseRule();
+    };
+
+    void JassParser::RememberPos(bool const stash)
     {
         static size_t savedPos = 0;
         static size_t savedCol = 0;
@@ -26,18 +51,18 @@ namespace Caelus
         c = source[pos];
     }
 
-    [[noreturn]] void JamlParser::Error(std::string_view const & msg) const
+    void JassParser::Error(std::string_view const & msg) const
     {
-        MX_THROW(std::format("JAML parse error at {},{}: {}", line, col, msg));
+        MX_THROW(std::format("JASS parse error at {},{}: {}", line, col, msg));
     }
 
-    void JamlParser::Expect(char const expected) const
+    void JassParser::Expect(char const expected) const
     {
         if (c == expected) return;
         Error(std::format("Expected '{}'", expected));
     }
 
-    void JamlParser::Eat(std::string_view const & expected)
+    void JassParser::Eat(std::string_view const & expected)
     {
         auto end = pos + expected.size();
         if (end < size)
@@ -54,7 +79,7 @@ namespace Caelus
         Error(std::format("Expected \"{}\"", expected));
     }
 
-    void JamlParser::EatWhitespace()
+    void JassParser::EatWhitespace()
     {
         while (c)
         {
@@ -72,7 +97,7 @@ namespace Caelus
         }
     }
 
-    bool JamlParser::LookAhead(std::string_view const & expected, bool eatIfFound)
+    bool JassParser::LookAhead(std::string_view const & expected, bool eatIfFound)
     {
         auto const start = pos + 1;
         auto const end = start + expected.size();
@@ -85,22 +110,22 @@ namespace Caelus
         return true;
     }
 
-    void JamlParser::EatCommentsAndWhitespace()
+    void JassParser::EatCommentsAndWhitespace()
     {
-        for(;;)
+        for (;;)
         {
             EatWhitespace();
-            if (c != '<') return;
-            if (!LookAhead("!--")) return;
-            auto const sub = source.substr(pos + 3);
-            auto n = sub.find("-->");
+            if (c != '/') return;
+            if (!LookAhead("*")) return;
+            auto const sub = source.substr(pos + 2);
+            auto n = sub.find("*/");
             if (n == std::string::npos) Error("Unterminated comment.");
-            n += 3;
+            n += 2;
             while (pos != n) NextChar();
         }
     }
 
-    char JamlParser::NextChar()
+    char JassParser::NextChar()
     {
         if (c == '\n')
         {
@@ -116,161 +141,118 @@ namespace Caelus
         return c;
     }
 
-    JamlParser::JamlParser(std::string_view const & source, CaelusWindow & window) : source(source), e(window)
+    JassParser::JassParser(std::string_view const & source, std::vector<Rule> & rules) : source(source)
     {
         size = source.size();
         if (!size) Error("Empty document");
         c = source[0];
-        EatCommentsAndWhitespace();
-        ParseTag();
-        if (e.m_tagname == "!doctype")
+        for(;;)
         {
-            if (e.m_attributes.size() != 1 ||
-                !e.m_attributes.contains("jaml") ||
-                e.m_attributes["jaml"] != "")
-            {
-                Error("Unsupported doctype");
-            }
             EatCommentsAndWhitespace();
-            ParseTag();
-            if (e.m_tagname != "jaml") Error("Outermost element should be \"jaml\"");
+            if (!c) break;
+            rules.push_back(ParseRule());
         }
-        EatCommentsAndWhitespace();
-        Expect(0);
     }
 
-    std::string_view JamlParser::ParseName()
+    std::string_view JassParser::ParseSelectors()
     {
-        auto const start = pos;
-        for (;; NextChar())
+        auto start = pos;
+        while (c != '{') NextChar();
+        return { source.begin() + start, source.begin() + pos };
+    }
+
+    std::string_view JassParser::ParseKey()
+    {
+        for (auto start = pos; ; NextChar())
         {
             switch (c)
             {
             case 0:
             case ' ':
+            case ':':
             case '\t':
             case '\r':
             case '\n':
-            case '=':
+            case '}':
             case '/':
-            case '>':
                 return { source.begin() + start, source.begin() + pos };
             }
         }
     }
 
-    std::string_view JamlParser::ParseKey()
+    std::string_view JassParser::ParseValue()
     {
-        return ParseName();
-    }
-
-    std::string_view JamlParser::ParseValue()
-    {
-        EatWhitespace();
-        if (c != '=') return {};
-        NextChar();
-        EatWhitespace();
-        auto quoted = c == '"';
-        if (quoted) NextChar();
-        auto const start = pos;
-        for (;; NextChar())
+        Eat(":");
+        EatCommentsAndWhitespace();
+        for (auto start = pos; ; NextChar())
         {
-            if (!quoted)
-            {
-                switch (c)
-                {
-                case 0:
-                case ' ':
-                case '\t':
-                case '\r':
-                case '\n':
-                case '/':
-                case '>':
-                    break;
-                default:
-                    continue;
-                }
-                break;
-            }
-
             switch (c)
             {
             case 0:
-            case '\r':
             case '\n':
-                Error("Unterminated string.");
-            case '"':
-                break;
+            case ';':
+            case '}':
+                return { source.begin() + start, source.begin() + pos };
             }
-            break;
         }
-        return { source.begin() + start, source.begin() + pos };
     }
 
-    void JamlParser::ParseAttributes()
+
+    Rule JassParser::ParseRule()
     {
+        auto rule = Rule{};
+        rule.selectors = ParseSelectors();
+        EatCommentsAndWhitespace();
+        Eat("{");
+        EatCommentsAndWhitespace();
         while (c)
         {
-            EatWhitespace();
-            switch (c)
-            {
-            case 0:
-            case '/':
-            case '>':
-                return;
-            }
-
-            e.m_attributes[std::string{ ParseKey() }.c_str()] = ParseValue();
+            if (c == '}') break;
+            auto k = ParseKey();
+            auto p = ValidateProperty(k);
+            EatCommentsAndWhitespace();
+            auto v = ParseValue();
+            rule.styles[p] = { k, v, line, col };
+            if (c != '}') NextChar();
+            EatCommentsAndWhitespace();
         }
+        return rule;
     }
 
-    void JamlParser::ParseTag()
+    const char * JassParser::ValidateProperty(std::string_view const & k) const
     {
-        Expect('<');
-        NextChar();
-        EatWhitespace();
-        e.m_tagname = ParseName();
-        if (e.m_tagname.empty()) Error("Expected an element name.");
-        ParseAttributes();
-        if (c == '/')
-        {
-            NextChar();
-            Expect('>');
-            return;
-        }
-        Expect('>');
-        ParseContent();
-        Eat(std::format("/{}>", e.m_tagname));
-    }
+        static constexpr auto names = {
+            "background-color",
+            "border",
+            "border-bottom",
+            "border-left",
+            "border-right",
+            "border-top",
+            "bottom",
+            "color",
+            "font-face",
+            "font-size",
+            "height",
+            "left",
+            "max-width",
+            "min-width",
+            "padding",
+            "padding-bottom",
+            "padding-left",
+            "padding-right",
+            "padding-top",
+            "right",
+            "top",
+            "width"
+        };
 
-    void JamlParser::ParseContent()
-    {
-        auto start = 0;
-        RememberPos(true);
-        while (NextChar())
+        for (auto const & name : names)
         {
-            if (c == '<')
-            {
-                if (start)
-                {
-                    auto text = CaelusElement{};
-                    text.m_text = source.substr(start, pos - start);
-                    e.m_children.push_back(text);
-                }
-                if (LookAhead(std::format("/{}>", e.m_tagname), true)) return;
-                if (LookAhead("/")) Error("Unexpected closing tag.");
-                e = {};
-                ParseTag();
-                e.m_parent->m_children.push_back(e);
-                e = *e.m_parent;
-                continue;
-            }
-            if (!start) start = pos;
+            if (k == name) return name;
         }
-        RememberPos(false);
-        Error("Unterminated element.");
-    }
 
+        Error(std::format("Unknown JASS property \"{}\"", k));
+    }
     /*
         try
         {

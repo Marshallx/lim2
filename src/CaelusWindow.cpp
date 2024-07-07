@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "CaelusElement.h"
-#include "CaelusParser.h"
+#include "jaml.h"
 
 #include "CaelusWindow.h"
 
@@ -86,21 +86,17 @@ namespace Caelus
         c->SetElement(this);
     }
 
-    CaelusWindow::CaelusWindow() : CaelusElement("window")
+    CaelusWindow::CaelusWindow() : CaelusWindow(std::string_view{ "<jaml><head></head><body></body></jaml>" }) {}
+    CaelusWindow::CaelusWindow(std::string_view const & source) : CaelusElement("window")
     {
         Init();
-    }
-
-    CaelusWindow::CaelusWindow(std::string_view const & CaelusSource) : CaelusElement("window")
-    {
-        Init();
-        JamlParser parser(CaelusSource, m_definedClasses);
-        BuildAll();
+        JamlParser(source, *this);
+        Validation();
     }
 
     CaelusWindow::CaelusWindow(std::filesystem::path const & file) : CaelusElement("window")
     {
-        if (!std::filesystem::exists(file)) MX_THROW("Specified ANUS file does not exist.");
+        if (!std::filesystem::exists(file)) MX_THROW("Specified JAML file does not exist.");
 
         FILE * f = fopen(file.string().c_str(), "r");
 
@@ -108,15 +104,15 @@ namespace Caelus
         fseek(f, 0, SEEK_END);
         size_t size = ftell(f);
 
-        auto CaelusSource = std::string{};
-        CaelusSource.resize(size);
+        auto source = std::string{};
+        source.resize(size);
 
         rewind(f);
-        fread(CaelusSource.data(), sizeof(char), size, f);
+        fread(source.data(), sizeof(char), size, f);
 
         Init();
-        JamlParser parser({ CaelusSource }, m_definedClasses);
-        BuildAll();
+        JamlParser(std::string_view{ source }, *this);
+        Validation();
     }
 
     CaelusClassMap const & CaelusWindow::GetClassMap() const
@@ -129,24 +125,21 @@ namespace Caelus
         m_throwOnUnresolved = !ignore;
     }
 
-    void CaelusWindow::BuildAll()
+    void CaelusWindow::Validation()
     {
-        Build();
 
-        // Check that all elements were built
-        for (auto & cp : m_definedClasses.m_map)
+        for (auto & child : m_children)
         {
-            auto c = cp.second.get();
-            if (c->GetElement()) continue;
-            if (cp.first.starts_with('.')) continue;
-            for (auto & cp2 : m_definedClasses.m_map)
+            if (child.m_tagname == "head")
             {
-                if (cp2.first == c->GetParentName())
-                {
-                    throw std::runtime_error(std::format("Element \"{}\" parent \"{}\" is also a descendant.", cp.first, cp2.first));
-                }
             }
-            throw std::runtime_error(std::format("Element \"{}\" parent \"{}\" not found.", cp.first, c->GetParentName()));
+            else if (child.m_tagname == "body")
+            {
+            }
+            else
+            {
+                MX_THROW("Unexpected tag \"{}\". Expected \"head\" or \"body\".", child.m_tagname);
+            }
         }
     }
 
