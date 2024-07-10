@@ -1,12 +1,16 @@
 #include "MxiLogging.h"
 #include "MxiUtils.h"
 
+#include "jass.h"
+
 #include "CaelusWindow.h"
 
 #include "CaelusElement.h"
 
 namespace Caelus
 {
+    using namespace jass;
+
     WNDPROC CaelusElement::StandardWndProc[CaelusElementType::last] = { NULL };
     wchar_t const * CaelusElement::CaelusClassName[CaelusElementType::last] = { nullptr };
 
@@ -529,6 +533,26 @@ namespace Caelus
         return that->WndProc(hwnd, msg, wparam, lparam);
     }
 
+    void CaelusElement::Build()
+    {
+        if (m_attributes.contains("style"))
+        {
+            auto const styles = mxi::explode(m_attributes["style"], ";");
+            for (auto const style : styles)
+            {
+                auto const parts = mxi::explode(style, ":", 2);
+                auto const k = mxi::trim(parts[0]);
+                auto const v = mxi::trim(parts[1]);
+                m_styles.emplace(k, v);
+            }
+        }
+
+        for (auto child : m_children)
+        {
+            child.Build();
+        }
+    }
+
     Resolved CaelusElement::ComputeBorder(Edge const edge)
     {
         if (m_futureRect.HasBorder(edge)) return RESOLVED;
@@ -539,12 +563,15 @@ namespace Caelus
         return RESOLVED;
     }
 
-    Resolved CaelusElement::ComputeEdge(Edge const edge)
+    Resolved CaelusElement::ComputeEdge(Edge const & edge)
     {
         if (m_futureRect.HasEdge(edge)) return RESOLVED;
-        auto const dim = edgeToDimension(edge);
+        auto const dim = Dimension(edge);
         ComputeSize(dim);
         if (m_futureRect.HasEdge(edge)) return RESOLVED;
+
+        auto const position = GetCssProp(kPosition);
+        auto const offset = GetCssProp(GetEdgeProp(edge));
 
         auto const & optTether = GetTether(edge);
         if (!optTether.has_value() && isFarEdge(edge)) return UNRESOLVED;
@@ -807,6 +834,60 @@ namespace Caelus
         MX_THROW("Unsupported unit for conversion to pixels.");
     }
 
-    
+    std::string const & CaelusElement::GetCssProp(char const * const property) const
+    {
+        // Important rules
+        auto const window = GetWindow();
+        uint32_t score[3] = { 0,0,0 };
+        jass::Rule const * best = nullptr;
+        for (auto const rule : window->m_rules)
+        {
+            if (!rule.important) continue;
+            if (!rule.styles.contains(property)) continue;
+            if (!SelectedBy(rule.selectors)) continue;
+            if (!best || rule.specificity[0] > score[0]
+                || (rule.specificity[0] == score[0] &&
+                    (rule.specificity[1] > score[1]
+                        || (rule.specificity[1] == score[1] &&
+                            (rule.specificity[2] > score[2])))))
+            {
+                best = &rule;
+                score[0] = rule.specificity[0];
+                score[1] = rule.specificity[1];
+                score[2] = rule.specificity[2];
+            }
+        }
+        if (best) return best->styles.at(property).value;
+
+        // Inline
+        if (m_styles.contains(property)) return m_styles.at(property);
+
+        // Normal rules
+        auto const window = GetWindow();
+        uint32_t score[3] = { 0,0,0 };
+        jass::Rule const * best = nullptr;
+        for (auto const rule : window->m_rules)
+        {
+            if (rule.important) continue;
+            if (!rule.styles.contains(property)) continue;
+            if (!SelectedBy(rule.selectors)) continue;
+            if (!best || rule.specificity[0] > score[0]
+                || (rule.specificity[0] == score[0] &&
+                    (rule.specificity[1] > score[1]
+                        || (rule.specificity[1] == score[1] &&
+                            (rule.specificity[2] > score[2])))))
+            {
+                best = &rule;
+                score[0] = rule.specificity[0];
+                score[1] = rule.specificity[1];
+                score[2] = rule.specificity[2];
+            }
+        }
+        if (best) return best->styles.at(property).value;
+
+        // TODO inherit
+
+        // TODO defaults
+    }
 
 }

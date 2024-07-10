@@ -6,6 +6,7 @@
 
 namespace Caelus
 {
+
     class JamlParser
     {
     public:
@@ -22,10 +23,6 @@ namespace Caelus
 
         [[noreturn]] void Error(std::string_view const & msg) const;
         void Expect(char const expected) const;
-        void Expected(std::string_view const & expected) const;
-        void Expected(char const expected) const;
-        void EoiCheck(std::string_view const & expected) const;
-        void EoiCheck(char const expected) const;
         void Eat(std::string_view const & expected);
         void RememberPos(bool const stash = true);
         bool LookAhead(std::string_view const & expected, bool const eatIfFound = false);
@@ -39,4 +36,7 @@ namespace Caelus
         void ParseContent();
         void ParseTag();
     };
+
+    // Unescape HTML text (e.g. &amp; to &)
+    std::string unescape(std::string_view const & s);
 }

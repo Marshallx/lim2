@@ -91,28 +91,16 @@ namespace Caelus
     {
         Init();
         JamlParser(source, *this);
-        Validation();
+        BuildAll();
     }
 
     CaelusWindow::CaelusWindow(std::filesystem::path const & file) : CaelusElement("window")
     {
-        if (!std::filesystem::exists(file)) MX_THROW("Specified JAML file does not exist.");
-
-        FILE * f = fopen(file.string().c_str(), "r");
-
-        // Determine file size
-        fseek(f, 0, SEEK_END);
-        size_t size = ftell(f);
-
-        auto source = std::string{};
-        source.resize(size);
-
-        rewind(f);
-        fread(source.data(), sizeof(char), size, f);
+        auto const source = mxi::file_get_contents(file);
 
         Init();
         JamlParser(std::string_view{ source }, *this);
-        Validation();
+        BuildAll();
     }
 
     CaelusClassMap const & CaelusWindow::GetClassMap() const
@@ -125,18 +113,39 @@ namespace Caelus
         m_throwOnUnresolved = !ignore;
     }
 
-    void CaelusWindow::Validation()
+    void CaelusWindow::BuildAll()
     {
 
         for (auto & child : m_children)
         {
+            child.Build();
             if (child.m_tagname == "head")
             {
+                for (auto tag : child.m_children)
+                {
+                    if (tag.m_tagname == "style")
+                    {
+                        JassParser{ tag.m_text, m_rules };
+                    }
+                    else if (tag.m_tagname == "link")
+                    {
+                        auto const href = std::filesystem::path(tag.m_attributes["href"]);
+                        if (href.empty() || !std::filesystem::exists(href))
+                        {
+                            MX_LOG_WARN(std::format("Link file not found: {}", href));
+                        }
+                        else
+                        {
+                            if (tag.m_attributes["rel"] == "stylesheet" || href.extension() == ".css")
+                            {
+                                auto const css = mxi::file_get_contents(href);
+                                JassParser{ css, m_rules };
+                            }
+                        }
+                    }
+                }
             }
-            else if (child.m_tagname == "body")
-            {
-            }
-            else
+            else if (child.m_tagname != "body")
             {
                 MX_THROW("Unexpected tag \"{}\". Expected \"head\" or \"body\".", child.m_tagname);
             }

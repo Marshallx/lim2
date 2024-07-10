@@ -8,8 +8,50 @@
 
 #define MX_THROW(message) { throw std::runtime_error(mxi::formatError(message).str()); }
 
+/*
+    // Declaration
+    MX_COLLECTION(Fruit, Apple, Orange, Banana);
+    //public:
+        bool IsOrange() const;
+    private:
+        bool IsYellow() const;
+    }; // <-- required
+
+    // Definitions
+    MX_MEMBER(Fruit, Apple);
+    MX_MEMBER(Fruit, Orange);
+    MX_MEMBER(Fruit, Banana);
+    bool IsOrange() const { return value == Value::Orange; }
+    bool IsYallow() const { return value == Value::Banana; }
+*/
+
+#define MX_COLLECTION(COLLECTION_NAME, ...) \
+    class COLLECTION_NAME \
+    { \
+    public: \
+        enum class Value : uint8_t \
+        { \
+            __VA_ARGS__ \
+        }; \
+        constexpr operator Value() const { return value; } \
+        explicit operator bool() const = delete; \
+        constexpr bool operator==(COLLECTION_NAME other) const { return value == other.value; } \
+        constexpr bool operator!=(COLLECTION_NAME other) const { return value != other.value; } \
+    private: \
+        Value value; \
+        COLLECTION_NAME() = delete; \
+        COLLECTION_NAME(COLLECTION_NAME const &) = delete; \
+        COLLECTION_NAME(COLLECTION_NAME const &&) = delete; \
+        constexpr COLLECTION_NAME(Value v) : value(v) { } \
+    public: \
+        static COLLECTION_NAME __VA_ARGS__;
+
+#define MX_MEMBER(COLLECTION_NAME, MEMBER_NAME) \
+    COLLECTION_NAME COLLECTION_NAME::MEMBER_NAME = { Value::MEMBER_NAME };
+
 namespace mxi
 {
+
     template <typename>
     constexpr auto always_false = false;
 
@@ -29,13 +71,18 @@ namespace mxi
 
     // Split a string into a vector of string_views (default) or strings (use explode<std::string>()).
     template<typename S = std::string_view>
-    std::vector<S> explode(std::string_view const & s, std::string_view const & delim = ",")
+    std::vector<S> explode(std::string_view const & s, std::string_view const & delim = ",", size_t limit = std::string::npos)
     {
         auto vs = std::vector<S>{};
         auto pos = size_t{};
-        for (auto fd = size_t{ 0 }; (fd = s.find(delim, pos)) != std::string::npos; pos = fd + delim.size())
+        auto count = size_t{};
+        if (count > 1)
         {
-            vs.emplace_back(s.data() + pos, s.data() + fd);
+            for (auto fd = size_t{ 0 }; (fd = s.find(delim, pos)) != std::string::npos; pos = fd + delim.size())
+            {
+                vs.emplace_back(s.data() + pos, s.data() + fd);
+                if (++count >= limit) break;
+            }
         }
         vs.emplace_back(s.data() + pos, s.data() + s.size());
         return vs;
@@ -60,16 +107,19 @@ namespace mxi
     // Check if a character requires escaping for JSON.
     bool json_escape_needed(unsigned char const c);
 
-    // Check if a string requires escaping for JSON (if false then just needs wrapping in quotemarks)
+    // Check if a string requires escaping for JSON (if false then just needs wrapping in quotemarks).
     bool json_escape_needed(std::string const & s);
 
-    // JSON-escape strings in-place without wrapping in quotemarks
+    // JSON-escape strings in-place without wrapping in quotemarks.
     void json_escape_string(std::string & s);
 
     // Unescape a JSON string. Must start and end with quotemarks. Ignores characters after closing quotemark, optionally returns number of characters parsed from source.
     std::string json_unescape_string(std::string_view const & s, size_t * cchParsed);
 
-    // Gets the portion of the string sans leading and trailing whitespace ( \t\r\n)
+    // Gets the portion of the string sans leading and trailing whitespace ( \t\r\n).
     [[nodiscard]] std::string_view trim(std::string_view const & str);
+
+    // Read entire file into memory.
+    std::string file_get_contents(std::filesystem::path const & path);
 
 }

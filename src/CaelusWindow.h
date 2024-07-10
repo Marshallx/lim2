@@ -11,6 +11,7 @@ namespace Caelus
 
     class CaelusWindow : public CaelusElement
     {
+        friend class CaelusElement;
     public:
         CaelusWindow();
         CaelusWindow(std::filesystem::path const & file);
@@ -24,13 +25,15 @@ namespace Caelus
         void SetResizable(bool const resizable = true);
         static void FitToInner(HWND inner);
 
+    protected:
+        std::vector<jass::Rule> m_rules = {};
+
     private:
         CaelusWindow(CaelusWindow const &) = delete;
         void Init();
-        void Validation();
+        void BuildAll();
         void FitToOuter();
         bool m_throwOnUnresolved = true;
-        CaelusClassMap m_definedClasses = {};
         bool m_resizable = false;
         HWND m_outerHwnd = 0;
     };

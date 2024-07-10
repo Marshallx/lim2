@@ -86,6 +86,25 @@ namespace mxi
         return ret;
     }
 
+    std::string file_get_contents(std::filesystem::path const & path)
+    {
+        if (!std::filesystem::exists(path)) MX_THROW(std::format("File not found: {}", path));
+
+        FILE * f = fopen(path.string().c_str(), "r");
+
+        // Determine file size
+        fseek(f, 0, SEEK_END);
+        size_t size = ftell(f);
+
+        auto source = std::string{};
+        source.resize(size);
+
+        rewind(f);
+        fread(source.data(), sizeof(char), size, f);
+
+        return source;
+    }
+
     bool json_escape_needed(unsigned char const c)
     {
         return (c < 0x1F || c == 0x7F || c == '"' || c == '\\');

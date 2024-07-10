@@ -13,16 +13,6 @@ namespace Caelus
         X = 0, Y = 1
     };
 
-    enum Edge : uint8_t
-    {
-        TOP = 0,
-        LEFT = 1,
-        BOTTOM = 2,
-        RIGHT = 3,
-        ALL_EDGES = 4
-    };
-    Edge operator ~(Edge const edge);
-
     enum Corner : uint8_t
     {
         TOPLEFT = 0,
@@ -31,13 +21,6 @@ namespace Caelus
         BOTTOMRIGHT = 3,
         ALL_CORNERS = 4
     };
-
-    enum Dimension : uint8_t
-    {
-        WIDTH = 0, HEIGHT = 1
-    };
-
-    Dimension edgeToDimension(Edge const edge);
 
     enum Unit
     {

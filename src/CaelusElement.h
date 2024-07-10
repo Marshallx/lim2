@@ -2,12 +2,16 @@
 
 #include <Windows.h>
 
+#include "jass.h"
+
 #include "CaelusClass.h"
 #include "MxiLogging.h"
 #include "MxiUtils.h"
 
 namespace Caelus
 {
+    using namespace jass;
+
     constexpr static auto const kElementClass = L"Caelus_ELEMENT";
     LRESULT CaelusElement_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -185,6 +189,7 @@ namespace Caelus
 
     protected:
         CaelusElement() = default;
+        void Build();
         void Spawn(HINSTANCE hInstance, HWND outerWindow = NULL);
         void PrepareToComputeLayout();
         wchar_t const * GetWindowClass() const;
@@ -217,7 +222,8 @@ namespace Caelus
 
 
     private:
-        std::unordered_map<char const *, std::string> m_attributes = {};
+        std::string const & GetCssProp(char const * property) const;
+        std::unordered_map<std::string, std::string> m_attributes = {};
         std::unordered_map<char const *, std::string> m_styles = {};
         std::string m_tagname = {};
         std::string m_text = {};
