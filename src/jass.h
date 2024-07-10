@@ -109,19 +109,44 @@ namespace jass
     class Property
     {
     public:
-        Property(std::string_view const & prop, std::string_view const & value, size_t line, size_t col)
-            : prop(std::string{ prop }), value(std::string{ value }), line(line), col(col) {};
-        std::string prop;
-        std::string value;
-        size_t line;
-        size_t col;
+        Property(std::string_view const & prop, std::string_view const & value, size_t line, size_t col);
+        std::string m_prop;
+        std::string m_value;
+        bool m_important;
+        size_t m_line;
+        size_t m_col;
+    };
+
+    enum Combinator
+    {
+        NONE, DESCENDANT, CHILD, SUBSEQUENT_SIBLING, NEXT_SIBLING, COLUMN
+    };
+
+    enum SimpleSelectorType
+    {
+        NONE, TYPE, ID, CLASS, ATTRIBUTE, PSEUDO_CLASS, PSEUDO_ELEMENT
+    };
+
+    class Selector
+    {
+    public:
+        std::string type = {};
+        std::string id = {};
+        std::vector<std::string> classes = {};
+        std::vector<std::string> attributes = {};
+        std::vector<std::string> pseudoclasses = {};
+        Combinator combinator = NONE; // relation to parent (left) CompoundSelector
+        uint32_t specificity[3] = { 0,0,0 };
     };
 
     class Rule
     {
     public:
-        std::string selectors;
-        std::unordered_map<char const *, Property> styles{};
+        Rule(size_t line, size_t col);
+        std::vector<std::vector<Selector>> selectors = {};
+        std::unordered_map<char const *, Property> styles = {};
+        size_t m_line;
+        size_t m_col;
     };
 
     class JassParser
@@ -145,9 +170,11 @@ namespace jass
         void EatWhitespace();
         void EatCommentsAndWhitespace();
         char NextChar();
-        std::string_view ParseSelectors();
+        Rule ParseRule();
+        std::vector<std::string> ParseSelectors();
         std::string_view ParseKey();
         std::string_view ParseValue();
+        const char * ValidateProperty(std::string_view const & k) const;
     };
 
 }

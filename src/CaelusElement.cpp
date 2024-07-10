@@ -842,8 +842,8 @@ namespace Caelus
         jass::Rule const * best = nullptr;
         for (auto const rule : window->m_rules)
         {
-            if (!rule.important) continue;
             if (!rule.styles.contains(property)) continue;
+            if (!rule.styles.at(property).m_important) continue;
             if (!SelectedBy(rule.selectors)) continue;
             if (!best || rule.specificity[0] > score[0]
                 || (rule.specificity[0] == score[0] &&
@@ -857,7 +857,7 @@ namespace Caelus
                 score[2] = rule.specificity[2];
             }
         }
-        if (best) return best->styles.at(property).value;
+        if (best) return best->styles.at(property).m_value;
 
         // Inline
         if (m_styles.contains(property)) return m_styles.at(property);
@@ -868,9 +868,9 @@ namespace Caelus
         jass::Rule const * best = nullptr;
         for (auto const rule : window->m_rules)
         {
-            if (rule.important) continue;
             if (!rule.styles.contains(property)) continue;
-            if (!SelectedBy(rule.selectors)) continue;
+            if (rule.styles.at(property).m_important) continue;
+            if (!SelectedBy(rule)) continue;
             if (!best || rule.specificity[0] > score[0]
                 || (rule.specificity[0] == score[0] &&
                     (rule.specificity[1] > score[1]
@@ -883,11 +883,19 @@ namespace Caelus
                 score[2] = rule.specificity[2];
             }
         }
-        if (best) return best->styles.at(property).value;
+        if (best) return best->styles.at(property).m_value;
 
         // TODO inherit
 
         // TODO defaults
+    }
+
+    bool CaelusElement::SelectedBy(Rule const & rule) const
+    {
+        for (auto const selector : rule.selectors)
+        {
+
+        }
     }
 
 }

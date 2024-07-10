@@ -7,30 +7,20 @@
 
 namespace jass
 {
-    class JassParser
+    Property::Property(std::string_view const & prop, std::string_view const & value, size_t line, size_t col)
+        : m_prop(std::string{ prop }), m_line(line), m_col(col)
     {
-    public:
-        JassParser(std::string_view const & source, std::vector<Rule> & rules);
-        std::string_view const & source;
-        char c = 0;
-        size_t size;
-        size_t pos = 0;
-        size_t col = 0;
-        size_t line = 0;
-
-        void Error(std::string_view const & msg) const;
-        void Expect(char const expected) const;
-        void Eat(std::string_view const & expected);
-        void RememberPos(bool const stash = true);
-        bool LookAhead(std::string_view const & expected, bool const eatIfFound = false);
-        void EatWhitespace();
-        void EatCommentsAndWhitespace();
-        char NextChar();
-        const char * ValidateProperty(std::string_view const & k) const;
-        std::string_view ParseSelectors();
-        std::string_view ParseKey();
-        std::string_view ParseValue();
-        Rule ParseRule();
+        static constexpr auto const kImportant = "!important";
+        static constexpr auto const cch = std::char_traits<char>::length(kImportant);
+        if (value.ends_with(kImportant))
+        {
+            m_important = true;
+            m_value = mxi::trim(value.substr(0, value.size() - cch));
+        }
+        else
+        {
+            m_value = value;
+        }
     };
 
     void JassParser::RememberPos(bool const stash)
@@ -154,13 +144,6 @@ namespace jass
         }
     }
 
-    std::string_view JassParser::ParseSelectors()
-    {
-        auto start = pos;
-        while (c != '{') NextChar();
-        return { source.begin() + start, source.begin() + pos };
-    }
-
     std::string_view JassParser::ParseKey()
     {
         for (auto start = pos; ; NextChar())
@@ -197,12 +180,132 @@ namespace jass
         }
     }
 
-
     Rule JassParser::ParseRule()
     {
-        auto rule = Rule{};
-        rule.selectors = ParseSelectors();
-        EatCommentsAndWhitespace();
+        auto rule = Rule{line, col};
+
+        auto start = pos;
+
+        auto selector = Selector{};
+        auto complex = std::vector<Selector>{};
+        auto combinator = Combinator::NONE;
+        auto workingType = SimpleSelectorType::TYPE;
+        auto workingName = std::string{};
+        bool done = false;
+        for (auto start = pos; c != 0; NextChar())
+        {
+            switch (c)
+            {
+            case 0:
+                Error("Unexpected end of input while parsing selectors.");
+            case ',':
+            case '{':
+                if (workingType == SimpleSelectorType::ATTRIBUTE) Error("Unterminated attribute selector.");
+                if (workingType == SimpleSelectorType::CLASS)
+                {
+                    selector.classes.push_back(workingName);
+                    workingName = std::string{};
+                }
+                complex.push_back(selector);
+                rule.selectors.push_back(complex);
+                if (c == ',') selector = Selector{};
+                combinator = Combinator::NONE;
+                done = true;
+                break;
+            case ' ':
+            case '\r':
+            case '\n':
+            case '\t':
+                if (combinator == Combinator::NONE) combinator = Combinator::DESCENDANT;
+                break;
+            case '>':
+                combinator = Combinator::CHILD;
+                break;
+            case '~':
+                combinator = Combinator::SUBSEQUENT_SIBLING;
+                break;
+            case '+':
+                combinator = Combinator::NEXT_SIBLING;
+                break;
+            case '|':
+                if (LookAhead("|", true)) Error("Namespace selectors are not supported.");
+                combinator = Combinator::COLUMN;
+                break;
+            case ']':
+                if (workingType != SimpleSelectorType::ATTRIBUTE) Error("Unexpected ']'.");
+                selector.attributes.push_back(workingName);
+                workingName = std::string{};
+                workingType = SimpleSelectorType::NONE;
+                continue;
+            case '#':
+            case '.':
+            case ':':
+            case '[':
+                if (combinator != Combinator::NONE)
+                {
+                    complex.push_back(selector);
+                    selector = Selector{};
+                    selector.combinator = combinator;
+                    combinator = Combinator::NONE;
+                }
+                if (workingType == SimpleSelectorType::ATTRIBUTE) Error("Unterminated attribute selector.");
+                if (workingType == SimpleSelectorType::CLASS)
+                {
+                    selector.classes.push_back(workingName);
+                    workingName = std::string{};
+                }
+                switch (c)
+                {
+                case '.': workingType = SimpleSelectorType::CLASS; ++selector.specificity[1]; continue;
+                case '#': workingType = SimpleSelectorType::ID; ++selector.specificity[0]; continue;
+                case ':':
+                    if (LookAhead(":", true)) Error("Psuedo-element selectors are not supported.");
+                    else workingType = SimpleSelectorType::PSEUDO_CLASS;
+                    continue;
+                case '[':
+                    workingType = SimpleSelectorType::ATTRIBUTE;
+                    continue;
+                }
+                continue;
+            default:
+                if (combinator != Combinator::NONE)
+                {
+                    complex.push_back(selector);
+                    selector = Selector{};
+                    selector.combinator = combinator;
+                    combinator = Combinator::NONE;
+                }
+                switch (workingType)
+                {
+                case SimpleSelectorType::NONE:
+                    ++selector.specificity[2];
+                    workingType = SimpleSelectorType::TYPE;
+                    [[fallthrough]];
+                case SimpleSelectorType::TYPE:
+                    selector.type.push_back(c);
+                    continue;
+                case SimpleSelectorType::ID:
+                    selector.id.push_back(c);
+                    continue;
+                case SimpleSelectorType::CLASS:
+                case SimpleSelectorType::ATTRIBUTE:
+                    workingName.push_back(c);
+                    continue;
+                }
+            }
+
+            if (done) break;
+
+            // Combinator encountered
+            if (workingType == SimpleSelectorType::ATTRIBUTE) Error("Unterminated attribute selector.");
+            if (workingType == SimpleSelectorType::CLASS)
+            {
+                selector.classes.push_back(workingName);
+                workingName = std::string{};
+                workingType == SimpleSelectorType::TYPE;
+            }
+        }
+
         Eat("{");
         EatCommentsAndWhitespace();
         while (c)
@@ -217,6 +320,22 @@ namespace jass
             EatCommentsAndWhitespace();
         }
         return rule;
+    }
+
+    Rule::Rule(std::string_view const & source, size_t line, size_t col) : m_line(line), m_col(col)
+    {
+        auto list = mxi::explode(source, ",");
+        for (auto const & sel : list)
+        {
+            auto complex = std::vector<Selector>{};
+            auto working = std::string{sel};
+            mxi::replace_all(working, ">", " > ");
+            mxi::replace_all(working, "~", " ~ ");
+            mxi::replace_all(working, "+", " + ");
+            mxi::replace_all(working, "||", " || ");
+            while (mxi::replace_all(working, "  ", " "));
+
+        }
     }
 
     const char * JassParser::ValidateProperty(std::string_view const & k) const

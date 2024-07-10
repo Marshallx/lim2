@@ -88,6 +88,11 @@ namespace mxi
         return vs;
     }
 
+    // Read entire file into memory.
+    std::string file_get_contents(std::filesystem::path const & path);
+
+    std::ostringstream formatError(std::string_view const & message, std::source_location const && source = {});
+
     // Join a vector of strings (or string_views) into a single string.
     template<typename S>
     std::string implode(std::vector<S> const & vs, std::string_view const & delim = ",")
@@ -102,8 +107,6 @@ namespace mxi
         return s;
     }
 
-    std::ostringstream formatError(std::string_view const & message, std::source_location const && source = {});
-
     // Check if a character requires escaping for JSON.
     bool json_escape_needed(unsigned char const c);
 
@@ -116,10 +119,11 @@ namespace mxi
     // Unescape a JSON string. Must start and end with quotemarks. Ignores characters after closing quotemark, optionally returns number of characters parsed from source.
     std::string json_unescape_string(std::string_view const & s, size_t * cchParsed);
 
+    // In-place replace all occurrences of a string with another.
+    // Returns number of replacements done. Recursive replacement can be performed via while(replace_all(source, from, to));
+    size_t replace_all(std::string & source, std::string_view const & from, std::string_view const & to, size_t max_replacements = -1ULL);
+
     // Gets the portion of the string sans leading and trailing whitespace ( \t\r\n).
     [[nodiscard]] std::string_view trim(std::string_view const & str);
-
-    // Read entire file into memory.
-    std::string file_get_contents(std::filesystem::path const & path);
 
 }

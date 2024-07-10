@@ -204,6 +204,32 @@ namespace mxi
         MX_THROW(std::format("JSON parse error: Unexpected end of input at position {}.", *cchParsed - 1));
     }
 
+    size_t replace_all(std::string & source, std::string_view const & from, std::string_view const & to, size_t max_replacements)
+    {
+        size_t count = 0;
+        std::string newString;
+        newString.reserve(source.length());  // avoids a few memory allocations
+
+        std::string::size_type lastPos = 0;
+        std::string::size_type findPos;
+
+        while (std::string::npos != (findPos = source.find(from, lastPos)))
+        {
+            ++count;
+            newString.append(source, lastPos, findPos - lastPos);
+            newString += to;
+            lastPos = findPos + from.length();
+            if (count >= max_replacements) break;
+        }
+
+        // Care for the rest after last occurrence
+        newString += source.substr(lastPos);
+
+        source.swap(newString);
+
+        return count;
+    }
+
     [[nodiscard]] std::string_view trim(std::string_view const & str)
     {
         static constexpr auto kWhitespace = " \t\r\n";
