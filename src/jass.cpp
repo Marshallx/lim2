@@ -192,6 +192,7 @@ namespace jass
         auto workingType = SimpleSelectorType::TYPE;
         auto workingName = std::string{};
         bool done = false;
+        uint64_t specificity = 0;
         for (auto start = pos; c != 0; NextChar())
         {
             switch (c)
@@ -207,7 +208,8 @@ namespace jass
                     workingName = std::string{};
                 }
                 complex.push_back(selector);
-                rule.selectors.push_back(complex);
+                rule.selectors.push_back({ specificity, complex });
+                specificity = 0;
                 if (c == ',') selector = Selector{};
                 combinator = Combinator::NONE;
                 done = true;
@@ -256,8 +258,8 @@ namespace jass
                 }
                 switch (c)
                 {
-                case '.': workingType = SimpleSelectorType::CLASS; ++selector.specificity[1]; continue;
-                case '#': workingType = SimpleSelectorType::ID; ++selector.specificity[0]; continue;
+                case '.': workingType = SimpleSelectorType::CLASS; specificity += 0x000000010000; continue;
+                case '#': workingType = SimpleSelectorType::ID; specificity += 0x000000000001; continue;
                 case ':':
                     if (LookAhead(":", true)) Error("Psuedo-element selectors are not supported.");
                     else workingType = SimpleSelectorType::PSEUDO_CLASS;
@@ -278,7 +280,7 @@ namespace jass
                 switch (workingType)
                 {
                 case SimpleSelectorType::NONE:
-                    ++selector.specificity[2];
+                    specificity += 0x000100000000;
                     workingType = SimpleSelectorType::TYPE;
                     [[fallthrough]];
                 case SimpleSelectorType::TYPE:
@@ -320,22 +322,6 @@ namespace jass
             EatCommentsAndWhitespace();
         }
         return rule;
-    }
-
-    Rule::Rule(std::string_view const & source, size_t line, size_t col) : m_line(line), m_col(col)
-    {
-        auto list = mxi::explode(source, ",");
-        for (auto const & sel : list)
-        {
-            auto complex = std::vector<Selector>{};
-            auto working = std::string{sel};
-            mxi::replace_all(working, ">", " > ");
-            mxi::replace_all(working, "~", " ~ ");
-            mxi::replace_all(working, "+", " + ");
-            mxi::replace_all(working, "||", " || ");
-            while (mxi::replace_all(working, "  ", " "));
-
-        }
     }
 
     const char * JassParser::ValidateProperty(std::string_view const & k) const

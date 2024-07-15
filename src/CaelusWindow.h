@@ -17,7 +17,6 @@ namespace Caelus
         CaelusWindow(std::filesystem::path const & file);
         CaelusWindow(std::string_view const & source);
         LRESULT WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
-        CaelusClassMap const & GetClassMap() const;
         static void Register(HINSTANCE hInstance);
         int Start(HINSTANCE hInstance, int const nCmdShow, int const x = 100, int const y = 100, int width = 640, int height = 480);
         void Relayout(int const width, int const height);
@@ -30,7 +29,6 @@ namespace Caelus
 
     private:
         CaelusWindow(CaelusWindow const &) = delete;
-        void Init();
         void BuildAll();
         void FitToOuter();
         bool m_throwOnUnresolved = true;

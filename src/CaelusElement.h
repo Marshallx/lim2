@@ -223,8 +223,10 @@ namespace Caelus
 
     private:
         std::string const & GetCssProp(char const * property) const;
-        bool SelectedBy(jass::Rule const & rule) const;
+        uint64_t GetCssRuleSpecificity(Rule const & rule) const;
         std::unordered_map<std::string, std::string> m_attributes = {};
+        std::vector<std::string> m_classes = {};
+        std::string m_id = {};
         std::unordered_map<char const *, std::string> m_styles = {};
         std::string m_tagname = {};
         std::string m_text = {};

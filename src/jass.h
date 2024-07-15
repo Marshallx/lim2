@@ -135,15 +135,14 @@ namespace jass
         std::vector<std::string> classes = {};
         std::vector<std::string> attributes = {};
         std::vector<std::string> pseudoclasses = {};
-        Combinator combinator = NONE; // relation to parent (left) CompoundSelector
-        uint32_t specificity[3] = { 0,0,0 };
+        Combinator combinator = Combinator::NONE; // relation to parent (left) CompoundSelector
     };
 
     class Rule
     {
     public:
-        Rule(size_t line, size_t col);
-        std::vector<std::vector<Selector>> selectors = {};
+        Rule(size_t line, size_t col) : m_line(line), m_col(col) {}
+        std::vector<std::pair<uint64_t, std::vector<Selector>>> selectors = {};
         std::unordered_map<char const *, Property> styles = {};
         size_t m_line;
         size_t m_col;

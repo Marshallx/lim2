@@ -4,6 +4,7 @@
 
 #include "CaelusElement.h"
 #include "jaml.h"
+#include "jass.h"
 
 #include "CaelusWindow.h"
 
@@ -77,15 +78,6 @@ namespace Caelus
         return that->WndProc(hwnd, msg, wparam, lparam);
     }
 
-    void CaelusWindow::Init()
-    {
-        auto cp = std::make_shared<CaelusClass>("window", &m_definedClasses);
-        auto c = cp.get();
-        m_definedClasses.m_map["window"] = cp;
-        m_class = c;
-        c->SetElement(this);
-    }
-
     CaelusWindow::CaelusWindow() : CaelusWindow(std::string_view{ "<jaml><head></head><body></body></jaml>" }) {}
     CaelusWindow::CaelusWindow(std::string_view const & source) : CaelusElement("window")
     {
@@ -101,11 +93,6 @@ namespace Caelus
         Init();
         JamlParser(std::string_view{ source }, *this);
         BuildAll();
-    }
-
-    CaelusClassMap const & CaelusWindow::GetClassMap() const
-    {
-        return m_definedClasses;
     }
 
     void CaelusWindow::IgnoreErrors(bool const ignore)
@@ -243,12 +230,12 @@ namespace Caelus
     {
         PrepareToComputeLayout();
 
-        m_futureRect.SetEdge(TOP, 0);
-        m_futureRect.SetEdge(LEFT, 0);
+        m_futureRect.SetEdge(Edge::TOP, 0);
+        m_futureRect.SetEdge(Edge::LEFT, 0);
         auto r = RECT{};
         GetClientRect(m_outerHwnd, &r);
-        if (width != -1) m_futureRect.SetEdge(RIGHT, r.right);
-        if (height != -1) m_futureRect.SetEdge(BOTTOM, r.bottom);
+        if (width != -1) m_futureRect.SetEdge(Edge::RIGHT, r.right);
+        if (height != -1) m_futureRect.SetEdge(Edge::BOTTOM, r.bottom);
 
         size_t previousUnresolvedCount = 0;
         for (;;)

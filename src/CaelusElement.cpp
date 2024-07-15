@@ -838,23 +838,17 @@ namespace Caelus
     {
         // Important rules
         auto const window = GetWindow();
-        uint32_t score[3] = { 0,0,0 };
+        uint64_t score = 0;
         jass::Rule const * best = nullptr;
         for (auto const rule : window->m_rules)
         {
             if (!rule.styles.contains(property)) continue;
             if (!rule.styles.at(property).m_important) continue;
-            if (!SelectedBy(rule.selectors)) continue;
-            if (!best || rule.specificity[0] > score[0]
-                || (rule.specificity[0] == score[0] &&
-                    (rule.specificity[1] > score[1]
-                        || (rule.specificity[1] == score[1] &&
-                            (rule.specificity[2] > score[2])))))
+            auto specificity = GetCssRuleSpecificity(rule);
+            if (specificity > score)
             {
                 best = &rule;
-                score[0] = rule.specificity[0];
-                score[1] = rule.specificity[1];
-                score[2] = rule.specificity[2];
+                score = specificity;
             }
         }
         if (best) return best->styles.at(property).m_value;
@@ -864,23 +858,17 @@ namespace Caelus
 
         // Normal rules
         auto const window = GetWindow();
-        uint32_t score[3] = { 0,0,0 };
+        uint64_t score = 0;
         jass::Rule const * best = nullptr;
         for (auto const rule : window->m_rules)
         {
             if (!rule.styles.contains(property)) continue;
             if (rule.styles.at(property).m_important) continue;
-            if (!SelectedBy(rule)) continue;
-            if (!best || rule.specificity[0] > score[0]
-                || (rule.specificity[0] == score[0] &&
-                    (rule.specificity[1] > score[1]
-                        || (rule.specificity[1] == score[1] &&
-                            (rule.specificity[2] > score[2])))))
+            auto specificity = GetCssRuleSpecificity(rule);
+            if (specificity > score)
             {
                 best = &rule;
-                score[0] = rule.specificity[0];
-                score[1] = rule.specificity[1];
-                score[2] = rule.specificity[2];
+                score = specificity;
             }
         }
         if (best) return best->styles.at(property).m_value;
@@ -890,11 +878,22 @@ namespace Caelus
         // TODO defaults
     }
 
-    bool CaelusElement::SelectedBy(Rule const & rule) const
+    uint64_t CaelusElement::GetCssRuleSpecificity(Rule const & rule) const
     {
-        for (auto const selector : rule.selectors)
+        for (auto const complex : rule.selectors)
         {
+            for (auto it = complex.second.rbegin(); it != complex.second.rend(); ++it)
+            {
+                auto const & simple = *it;
+                if (!simple.id.empty() && m_id != simple.id) return 0;
+                for (auto const & c : simple.classes)
+                {
+                    if (std::find(m_classes.begin(), m_classes.end(), c) == m_classes.end()) return 0;
+                }
 
+                // TODO other bits, plus on iteration we need to look at some other element!!!
+                return complex.first;
+            }
         }
     }
 
