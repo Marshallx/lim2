@@ -136,6 +136,8 @@ namespace jass
         std::vector<std::string> attributes = {};
         std::vector<std::string> pseudoclasses = {};
         Combinator combinator = Combinator::NONE; // relation to parent (left) CompoundSelector
+        Selector const * parent = nullptr;
+        Selector(Selector const * parent) : parent(parent) {};
     };
 
     class Rule

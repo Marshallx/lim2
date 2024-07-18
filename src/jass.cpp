@@ -186,7 +186,7 @@ namespace jass
 
         auto start = pos;
 
-        auto selector = Selector{};
+        auto selector = Selector{nullptr};
         auto complex = std::vector<Selector>{};
         auto combinator = Combinator::NONE;
         auto workingType = SimpleSelectorType::TYPE;
@@ -210,7 +210,7 @@ namespace jass
                 complex.push_back(selector);
                 rule.selectors.push_back({ specificity, complex });
                 specificity = 0;
-                if (c == ',') selector = Selector{};
+                if (c == ',') selector = Selector{nullptr};
                 combinator = Combinator::NONE;
                 done = true;
                 break;
@@ -246,7 +246,7 @@ namespace jass
                 if (combinator != Combinator::NONE)
                 {
                     complex.push_back(selector);
-                    selector = Selector{};
+                    selector = Selector{&selector};
                     selector.combinator = combinator;
                     combinator = Combinator::NONE;
                 }
@@ -273,7 +273,7 @@ namespace jass
                 if (combinator != Combinator::NONE)
                 {
                     complex.push_back(selector);
-                    selector = Selector{};
+                    selector = Selector{&selector};
                     selector.combinator = combinator;
                     combinator = Combinator::NONE;
                 }

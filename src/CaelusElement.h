@@ -224,6 +224,8 @@ namespace Caelus
     private:
         std::string const & GetCssProp(char const * property) const;
         uint64_t GetCssRuleSpecificity(Rule const & rule) const;
+        bool MatchesSimpleSelector(Selector const & simple) const;
+        bool MatchesComplexSelector(Selector complex) const;
         std::unordered_map<std::string, std::string> m_attributes = {};
         std::vector<std::string> m_classes = {};
         std::string m_id = {};

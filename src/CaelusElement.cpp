@@ -878,23 +878,54 @@ namespace Caelus
         // TODO defaults
     }
 
+    bool CaelusElement::MatchesSimpleSelector(Selector const & simple) const
+    {
+        if (!simple.id.empty() && m_id != simple.id) return false;
+        for (auto const & c : simple.classes)
+        {
+            if (std::find(m_classes.begin(), m_classes.end(), c) == m_classes.end()) return false;
+        }
+        if (!simple.type.empty() && simple.type != m_tagname) return false;
+
+        // TODO attributes, pseudoclasses
+
+        switch (simple.combinator)
+        {
+        case Combinator::CHILD:
+            return m_parent && m_parent->MatchesSimpleSelector(simple.parent);
+
+        case Combinator::DESCENDANT:
+            auto cur = this;
+            while (cur = cur->m_parent)
+            {
+                if (cur->MatchesSimpleSelector(simple.parent)) return true;
+            }
+            return false;
+
+        case Combinator::NEXT_SIBLING:
+            auto cur = GetSibling(Edge::LEFT);
+            return cur && cur->MatchesSimpleSelector(simple.parent);
+
+        case Combinator::SUBSEQUENT_SIBLING:
+            auto cur = this;
+            while (cur = cur->GetSibling(Edge::LEFT))
+            {
+                if (cur->MatchesSimpleSelector(simple.parent)) return true;
+            }
+            return false;
+
+        }
+
+        return true;
+    }
+
     uint64_t CaelusElement::GetCssRuleSpecificity(Rule const & rule) const
     {
         for (auto const complex : rule.selectors)
         {
-            for (auto it = complex.second.rbegin(); it != complex.second.rend(); ++it)
-            {
-                auto const & simple = *it;
-                if (!simple.id.empty() && m_id != simple.id) return 0;
-                for (auto const & c : simple.classes)
-                {
-                    if (std::find(m_classes.begin(), m_classes.end(), c) == m_classes.end()) return 0;
-                }
-
-                // TODO other bits, plus on iteration we need to look at some other element!!!
-                return complex.first;
-            }
+            if (MatchesSimpleSelector(complex.second.back())) return complex.first;
         }
+        return 0;
     }
 
 }
